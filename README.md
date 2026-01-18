@@ -11,7 +11,7 @@ See [DESIGN.md](./DESIGN.md) for the design document.
 Boiler simplifies deploying and managing Steam dedicated game servers on Kubernetes. Define a custom resource, and Boiler handles the rest - SteamCMD downloads, persistent storage, networking, and lifecycle management.
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: ValheimServer
 metadata:
   name: vikings-only

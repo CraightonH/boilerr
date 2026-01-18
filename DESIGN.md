@@ -60,7 +60,7 @@ A Kubernetes operator that simplifies deploying and managing Steam dedicated gam
 One CRD that works for any game. Users must provide all configuration.
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: SteamServer
 metadata:
   name: valheim-prod
@@ -158,7 +158,7 @@ For popular games, provide first-class CRDs with sane defaults and typed config.
 #### ValheimServer
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: ValheimServer
 metadata:
   name: valheim-prod
@@ -199,7 +199,7 @@ status:
 #### SatisfactoryServer
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: SatisfactoryServer
 metadata:
   name: satisfactory-prod
@@ -223,7 +223,7 @@ spec:
 #### PalworldServer
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: PalworldServer
 metadata:
   name: palworld-prod
@@ -258,7 +258,7 @@ spec:
 #### FactorioServer
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: FactorioServer
 metadata:
   name: factorio-prod
@@ -308,7 +308,7 @@ spec:
 #### SevenDaysServer
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: SevenDaysServer
 metadata:
   name: 7dtd-prod
@@ -362,7 +362,7 @@ spec:
 #### VRisingServer
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: VRisingServer
 metadata:
   name: vrising-prod
@@ -415,7 +415,7 @@ spec:
 #### EnshroudedServer
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: EnshroudedServer
 metadata:
   name: enshrouded-prod
@@ -447,7 +447,7 @@ spec:
 #### TerrariaServer
 
 ```yaml
-apiVersion: boiler.dev/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: TerrariaServer
 metadata:
   name: terraria-prod
@@ -810,7 +810,7 @@ Files Changed:
 ## Open Questions
 
 1. **Naming**: `SteamServer`? `GameServer`? `DedicatedServer`?
-2. **Group/Domain**: `boiler.dev`? `gameserver.io`?
+2. **Group/Domain**: `boilerr.dev`? `gameserver.io`?
 3. **Image Strategy**: Operator-provided base image or user brings their own?
 4. **Game Profiles**: Ship a library of known-good configs for popular games?
 5. **Web UI Deployment**: Bundled with operator? Separate deployment? Static site?
