@@ -1,4 +1,4 @@
-# SteamCMD Operator Design Document
+# Boilerr Design Document
 
 ## Overview
 
@@ -517,7 +517,7 @@ spec:
 ### Directory Structure
 
 ```
-boiler/
+boilerr/
 ├── api/
 │   └── v1alpha1/
 │       ├── steamserver_types.go      # Generic CRD

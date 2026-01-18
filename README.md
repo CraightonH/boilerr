@@ -1,4 +1,4 @@
-# Boiler 🔥
+# Boilerr 🔥
 
 A Kubernetes operator for managing Steam dedicated game servers.
 
@@ -8,7 +8,7 @@ See [DESIGN.md](./DESIGN.md) for the design document.
 
 ## Overview
 
-Boiler simplifies deploying and managing Steam dedicated game servers on Kubernetes. Define a custom resource, and Boiler handles the rest - SteamCMD downloads, persistent storage, networking, and lifecycle management.
+Boilerr simplifies deploying and managing Steam dedicated game servers on Kubernetes. Define a custom resource, and Boilerr handles the rest - SteamCMD downloads, persistent storage, networking, and lifecycle management.
 
 ```yaml
 apiVersion: boilerr.dev/v1alpha1
