@@ -17,6 +17,17 @@ Boilerr is a Kubernetes operator for managing Steam dedicated game servers. It u
 
 - `DESIGN.md` - Architecture decisions, CRD schemas, reconciliation patterns
 - `ROADMAP.md` - Phased task breakdown, current progress
+- `ROADMAP_COMPLETED.md` - Completed roadmap items archive
+
+## Development Workflow
+
+**Before submitting PRs:**
+- Move completed roadmap items from `ROADMAP.md` to `ROADMAP_COMPLETED.md`
+- Keep ROADMAP.md focused on remaining work
+
+**When adding new documentation files:**
+- Update `paths-ignore` in GitHub Actions workflows (build.yml, test.yml, lint.yml, test-e2e.yml)
+- Add new docs to ignore list to skip CI on docs-only changes
 
 ## Development Commands
 

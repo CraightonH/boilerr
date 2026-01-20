@@ -2,7 +2,21 @@ name: Tests
 
 on:
   push:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - 'CONTRIBUTING.md'
+      - 'CODE_OF_CONDUCT.md'
+      - '.gitignore'
+      - '.pre-commit-config.yaml'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - 'CONTRIBUTING.md'
+      - 'CODE_OF_CONDUCT.md'
+      - '.gitignore'
+      - '.pre-commit-config.yaml'
 
 jobs:
   test:
