@@ -5,21 +5,21 @@
 Establish the project structure, tooling, and basic operator scaffolding.
 
 ### 1.1 Project Scaffolding
-- [ ] Initialize Go module (`go mod init github.com/CraightonH/boilerr`)
-- [ ] Set up Kubebuilder project structure
-- [ ] Create initial Makefile with common targets (build, test, generate, deploy)
-- [ ] Add `.gitignore` for Go/Kubernetes projects
-- [ ] Configure linting (golangci-lint)
-- [ ] Set up pre-commit hooks
+- [x] Initialize Go module (`go mod init github.com/CraightonH/boilerr`)
+- [x] Set up Kubebuilder project structure
+- [x] Create initial Makefile with common targets (build, test, generate, deploy)
+- [x] Add `.gitignore` for Go/Kubernetes projects
+- [x] Configure linting (golangci-lint)
+- [x] Set up pre-commit hooks
 
 ### 1.2 CI/CD Pipeline
-- [ ] GitHub Actions workflow for PR checks (lint, test, build)
-- [ ] Container image build and push workflow
-- [ ] Release workflow with semantic versioning
-- [ ] CRD schema validation in CI
+- [x] GitHub Actions workflow for PR checks (lint, test, build)
+- [x] Container image build and push workflow
+- [x] Release workflow with semantic versioning
+- [x] CRD schema validation in CI
 
 ### 1.3 Documentation Foundation
-- [ ] Set up contributing guidelines (CONTRIBUTING.md)
-- [ ] Create issue and PR templates
-- [ ] Add code of conduct
-- [ ] License selection and LICENSE file
+- [x] Set up contributing guidelines (CONTRIBUTING.md)
+- [x] Create issue and PR templates
+- [x] Add code of conduct
+- [x] License selection and LICENSE file
