@@ -1,0 +1,92 @@
+name: CRD Validation
+
+on:
+  push:
+    paths:
+      - 'api/**'
+      - 'config/crd/**'
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'config/crd/**'
+
+jobs:
+  validate:
+    name: Validate CRDs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install kubeconform
+        run: |
+          curl -L -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar xzf kubeconform.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Generate CRD manifests
+        run: make manifests
+
+      - name: Check CRD manifests are up to date
+        run: |
+          git diff --exit-code config/crd/bases/ || {
+            echo "CRD manifests are out of date. Run 'make manifests' and commit the changes."
+            exit 1
+          }
+
+      - name: Validate CRD schemas
+        run: |
+          # Find and validate all CRD files
+          if [ -d "config/crd/bases" ]; then
+            for crd in config/crd/bases/*.yaml; do
+              if [ -f "$crd" ]; then
+                echo "Validating $crd..."
+                kubeconform -strict -summary "$crd"
+              fi
+            done
+          else
+            echo "No CRD files found (expected during initial setup)"
+          fi
+
+      - name: Validate sample CRs against CRDs
+        run: |
+          # Validate sample CR files if they exist
+          if [ -d "config/samples" ]; then
+            for sample in config/samples/*.yaml; do
+              if [ -f "$sample" ]; then
+                echo "Validating sample $sample..."
+                kubeconform -strict -summary "$sample" || true
+              fi
+            done
+          else
+            echo "No sample files found (expected during initial setup)"
+          fi
+
+  schema-check:
+    name: Check Generated Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Generate code
+        run: make generate
+
+      - name: Check generated code is up to date
+        run: |
+          git diff --exit-code || {
+            echo "Generated code is out of date. Run 'make generate' and commit the changes."
+            exit 1
+          }
