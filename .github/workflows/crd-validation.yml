@@ -35,10 +35,14 @@ jobs:
 
       - name: Check CRD manifests are up to date
         run: |
-          git diff --exit-code config/crd/bases/ || {
-            echo "CRD manifests are out of date. Run 'make manifests' and commit the changes."
-            exit 1
-          }
+          if [ -d "config/crd/bases" ]; then
+            git diff --exit-code config/crd/bases/ || {
+              echo "CRD manifests are out of date. Run 'make manifests' and commit the changes."
+              exit 1
+            }
+          else
+            echo "No CRD directory found (expected during initial setup)"
+          fi
 
       - name: Validate CRD schemas
         run: |

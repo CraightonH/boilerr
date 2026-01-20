@@ -3,8 +3,22 @@ name: Build
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - 'CONTRIBUTING.md'
+      - 'CODE_OF_CONDUCT.md'
+      - '.gitignore'
+      - '.pre-commit-config.yaml'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - 'CONTRIBUTING.md'
+      - 'CODE_OF_CONDUCT.md'
+      - '.gitignore'
+      - '.pre-commit-config.yaml'
 
 env:
   REGISTRY: ghcr.io
