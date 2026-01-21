@@ -12,9 +12,10 @@ import (
 
 func TestServiceBuilder_Build(t *testing.T) {
 	tests := []struct {
-		name   string
-		server *boilerrv1alpha1.SteamServer
-		checks func(t *testing.T, svc *corev1.Service)
+		name    string
+		server  *boilerrv1alpha1.SteamServer
+		gameDef *boilerrv1alpha1.GameDefinition
+		checks  func(t *testing.T, svc *corev1.Service)
 	}{
 		{
 			name: "basic service with defaults",
@@ -24,11 +25,12 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -50,11 +52,12 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "games",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 896660,
+					Game:  "valheim",
+					AppId: int32Ptr(896660),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("20Gi"),
 					},
 				},
@@ -79,11 +82,12 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -102,12 +106,13 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId:       123456,
+					Game:        "test-game",
+					AppId:       int32Ptr(123456),
 					ServiceType: corev1.ServiceTypeNodePort,
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -126,12 +131,13 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId:       123456,
+					Game:        "test-game",
+					AppId:       int32Ptr(123456),
 					ServiceType: corev1.ServiceTypeClusterIP,
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -150,11 +156,12 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -173,11 +180,12 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -209,13 +217,14 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 						{Name: "query", ContainerPort: 27016, Protocol: corev1.ProtocolTCP},
 						{Name: "rcon", ContainerPort: 27017, Protocol: corev1.ProtocolTCP},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -243,11 +252,12 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015, ServicePort: 7777},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -273,11 +283,12 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015, ServicePort: 0},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -297,12 +308,13 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "games",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 896660,
+					Game:  "valheim",
+					AppId: int32Ptr(896660),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456},
 						{Name: "query", ContainerPort: 2457},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("20Gi"),
 					},
 				},
@@ -323,7 +335,7 @@ func TestServiceBuilder_Build(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewServiceBuilder(tt.server)
+			builder := NewServiceBuilder(tt.server, tt.gameDef)
 			svc := builder.Build()
 			tt.checks(t, svc)
 		})

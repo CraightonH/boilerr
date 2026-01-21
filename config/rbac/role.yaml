@@ -41,6 +41,7 @@ rules:
 - apiGroups:
   - boilerr.dev
   resources:
+  - gamedefinitions
   - steamservers
   verbs:
   - create
@@ -53,12 +54,14 @@ rules:
 - apiGroups:
   - boilerr.dev
   resources:
+  - gamedefinitions/finalizers
   - steamservers/finalizers
   verbs:
   - update
 - apiGroups:
   - boilerr.dev
   resources:
+  - gamedefinitions/status
   - steamservers/status
   verbs:
   - get

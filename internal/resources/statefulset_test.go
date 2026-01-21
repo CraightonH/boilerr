@@ -10,10 +10,14 @@ import (
 	boilerrv1alpha1 "github.com/CraightonH/boilerr/api/v1alpha1"
 )
 
-func boolPtr(b bool) *bool {
-	return &b
-}
+const (
+	testServerName = "test-server"
+	testNamespace  = "default"
+	testAppName    = "steamserver"
+	testInstance   = "valheim"
+)
 
+//nolint:gocyclo // Table-driven test with multiple checks
 func TestStatefulSetBuilder_Build(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -24,32 +28,33 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 			name: "basic statefulset with defaults",
 			server: &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-server",
-					Namespace: "default",
+					Name:      testServerName,
+					Namespace: testNamespace,
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
 			},
 			checks: func(t *testing.T, sts interface{}) {
 				s := sts.(*StatefulSetBuilder).Build()
-				if s.Name != "test-server" {
-					t.Errorf("expected name 'test-server', got %s", s.Name)
+				if s.Name != testServerName {
+					t.Errorf("expected name %q, got %s", testServerName, s.Name)
 				}
-				if s.Namespace != "default" {
-					t.Errorf("expected namespace 'default', got %s", s.Namespace)
+				if s.Namespace != testNamespace {
+					t.Errorf("expected namespace %q, got %s", testNamespace, s.Namespace)
 				}
 				if *s.Spec.Replicas != 1 {
 					t.Errorf("expected replicas 1, got %d", *s.Spec.Replicas)
 				}
-				if s.Spec.ServiceName != "test-server" {
-					t.Errorf("expected serviceName 'test-server', got %s", s.Spec.ServiceName)
+				if s.Spec.ServiceName != testServerName {
+					t.Errorf("expected serviceName %q, got %s", testServerName, s.Spec.ServiceName)
 				}
 			},
 		},
@@ -57,15 +62,16 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 			name: "labels include app-id",
 			server: &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "valheim",
+					Name:      testInstance,
 					Namespace: "games",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 896660,
+					Game:  "valheim",
+					AppId: int32Ptr(896660),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("20Gi"),
 					},
 				},
@@ -75,11 +81,11 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 				if s.Labels["boilerr.dev/app-id"] != "896660" {
 					t.Errorf("expected app-id label '896660', got %s", s.Labels["boilerr.dev/app-id"])
 				}
-				if s.Labels["app.kubernetes.io/name"] != "steamserver" {
-					t.Errorf("expected name label 'steamserver', got %s", s.Labels["app.kubernetes.io/name"])
+				if s.Labels["app.kubernetes.io/name"] != testAppName {
+					t.Errorf("expected name label %q, got %s", testAppName, s.Labels["app.kubernetes.io/name"])
 				}
-				if s.Labels["app.kubernetes.io/instance"] != "valheim" {
-					t.Errorf("expected instance label 'valheim', got %s", s.Labels["app.kubernetes.io/instance"])
+				if s.Labels["app.kubernetes.io/instance"] != testInstance {
+					t.Errorf("expected instance label %q, got %s", testInstance, s.Labels["app.kubernetes.io/instance"])
 				}
 			},
 		},
@@ -87,16 +93,17 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 			name: "custom image override",
 			server: &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-server",
-					Namespace: "default",
+					Name:      testServerName,
+					Namespace: testNamespace,
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Image: "custom/steamcmd:v1.0",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -121,11 +128,12 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -133,8 +141,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 			checks: func(t *testing.T, sts interface{}) {
 				s := sts.(*StatefulSetBuilder).Build()
 				initContainer := s.Spec.Template.Spec.InitContainers[0]
-				if initContainer.Image != "steamcmd/steamcmd:latest" {
-					t.Errorf("expected default image 'steamcmd/steamcmd:latest', got %s", initContainer.Image)
+				if initContainer.Image != DefaultImage {
+					t.Errorf("expected default image '%s', got %s", DefaultImage, initContainer.Image)
 				}
 			},
 		},
@@ -146,12 +154,13 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 						{Name: "query", ContainerPort: 27016, Protocol: corev1.ProtocolTCP},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -178,13 +187,14 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId:   123456,
+					Game:    "valheim",
+					AppId:   int32Ptr(123456),
 					Command: []string{"/bin/bash", "-c"},
 					Args:    []string{"./start_server.sh", "-name", "MyServer"},
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -208,7 +218,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Env: []corev1.EnvVar{
 						{Name: "SERVER_NAME", Value: "MyServer"},
 						{Name: "MAX_PLAYERS", Value: "16"},
@@ -216,7 +227,7 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -240,14 +251,15 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
-					Resources: corev1.ResourceRequirements{
+					Resources: &corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("500m"),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -280,11 +292,12 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 					ConfigFiles: []boilerrv1alpha1.ConfigFile{
@@ -327,11 +340,12 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -355,11 +369,12 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -381,11 +396,12 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -412,11 +428,12 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -433,13 +450,13 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewStatefulSetBuilder(tt.server)
+			builder := NewStatefulSetBuilder(tt.server, nil)
 			tt.checks(t, builder)
 		})
 	}
 }
 
-func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
+func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 	tests := []struct {
 		name             string
 		server           *boilerrv1alpha1.SteamServer
@@ -454,18 +471,21 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
 			},
 			shouldContain: []string{
-				"+login anonymous",
-				"+app_update 123456",
+				"+login",
+				"anonymous",
+				"+app_update",
+				"123456",
 				"validate",
 			},
 			shouldNotContain: []string{
@@ -481,18 +501,20 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId:     123456,
+					Game:      "valheim",
+					AppId:     int32Ptr(123456),
 					Anonymous: boolPtr(true),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
 			},
 			shouldContain: []string{
-				"+login anonymous",
+				"+login",
+				"anonymous",
 			},
 		},
 		{
@@ -503,13 +525,14 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId:                  123456,
+					Game:                   "valheim",
+					AppId:                  int32Ptr(123456),
 					Anonymous:              boolPtr(false),
 					SteamCredentialsSecret: "steam-creds",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -519,7 +542,7 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 				"$STEAM_PASSWORD",
 			},
 			shouldNotContain: []string{
-				"+login anonymous",
+				"anonymous",
 			},
 		},
 		{
@@ -530,11 +553,12 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -551,12 +575,13 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId:    123456,
+					Game:     "valheim",
+					AppId:    int32Ptr(123456),
 					Validate: boolPtr(false),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -573,18 +598,20 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Beta:  "experimental",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
 			},
 			shouldContain: []string{
-				"-beta experimental",
+				"-beta",
+				"experimental",
 			},
 		},
 		{
@@ -595,11 +622,12 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -616,35 +644,37 @@ func TestStatefulSetBuilder_SteamCMDScript(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
 			},
 			shouldContain: []string{
-				"+force_install_dir " + ServerFilesMountPath,
+				"+force_install_dir",
+				ServerFilesMountPath,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewStatefulSetBuilder(tt.server)
+			builder := NewStatefulSetBuilder(tt.server, nil)
 			sts := builder.Build()
-			script := sts.Spec.Template.Spec.InitContainers[0].Command[2]
+			args := sts.Spec.Template.Spec.InitContainers[0].Args
 
 			for _, s := range tt.shouldContain {
-				if !containsString(script, s) {
-					t.Errorf("expected script to contain %q, got:\n%s", s, script)
+				if !containsStringInSlice(args, s) {
+					t.Errorf("expected args to contain %q, got:\n%v", s, args)
 				}
 			}
 			for _, s := range tt.shouldNotContain {
-				if containsString(script, s) {
-					t.Errorf("expected script to NOT contain %q, got:\n%s", s, script)
+				if containsStringInSlice(args, s) {
+					t.Errorf("expected args to NOT contain %q, got:\n%v", s, args)
 				}
 			}
 		})
@@ -666,11 +696,12 @@ func TestStatefulSetBuilder_InitEnvVars(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "valheim",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -686,13 +717,14 @@ func TestStatefulSetBuilder_InitEnvVars(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId:                  123456,
+					Game:                   "valheim",
+					AppId:                  int32Ptr(123456),
 					Anonymous:              boolPtr(false),
 					SteamCredentialsSecret: "steam-creds",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -704,7 +736,7 @@ func TestStatefulSetBuilder_InitEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewStatefulSetBuilder(tt.server)
+			builder := NewStatefulSetBuilder(tt.server, nil)
 			sts := builder.Build()
 			initContainer := sts.Spec.Template.Spec.InitContainers[0]
 
@@ -782,13 +814,9 @@ func TestConfigMapName(t *testing.T) {
 	}
 }
 
-func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStringHelper(s, substr))
-}
-
-func containsStringHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
+func containsStringInSlice(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
 			return true
 		}
 	}

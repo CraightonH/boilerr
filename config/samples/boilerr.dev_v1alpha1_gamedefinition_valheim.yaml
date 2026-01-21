@@ -1,0 +1,55 @@
+apiVersion: boilerr.dev/v1alpha1
+kind: GameDefinition
+metadata:
+  name: valheim
+spec:
+  appId: 896660
+  image: steamcmd/steamcmd:ubuntu-22
+  installDir: /data/server
+  command: /data/server/valheim_server.x86_64
+  args:
+    - "-name"
+    - "{{.Config.serverName}}"
+    - "-world"
+    - "{{.Config.worldName}}"
+    - "-password"
+    - "{{.Config.password}}"
+    - "-port"
+    - "2456"
+    - "-public"
+    - "{{.Config.public}}"
+  ports:
+    - name: game
+      containerPort: 2456
+      protocol: UDP
+    - name: query
+      containerPort: 2457
+      protocol: UDP
+  env:
+    - name: SteamAppId
+      value: "892970"
+  configSchema:
+    serverName:
+      description: "Server name shown in browser"
+      default: "My Valheim Server"
+      required: true
+    worldName:
+      description: "World/save name"
+      default: "Dedicated"
+      required: true
+    password:
+      description: "Server password (min 5 chars)"
+      secret: true
+      required: true
+    public:
+      description: "List on public server browser (0 or 1)"
+      default: "0"
+      enum: ["0", "1"]
+  defaultResources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  defaultStorage: "20Gi"

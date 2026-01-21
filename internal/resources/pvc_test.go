@@ -16,9 +16,10 @@ func stringPtr(s string) *string {
 
 func TestPVCBuilder_Build(t *testing.T) {
 	tests := []struct {
-		name   string
-		server *boilerrv1alpha1.SteamServer
-		checks func(t *testing.T, pvc *corev1.PersistentVolumeClaim)
+		name    string
+		server  *boilerrv1alpha1.SteamServer
+		gameDef *boilerrv1alpha1.GameDefinition
+		checks  func(t *testing.T, pvc *corev1.PersistentVolumeClaim)
 	}{
 		{
 			name: "basic PVC with defaults",
@@ -28,11 +29,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -54,11 +56,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "games",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 896660,
+					Game:  "valheim",
+					AppId: int32Ptr(896660),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("20Gi"),
 					},
 				},
@@ -83,11 +86,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -109,11 +113,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("50Gi"),
 					},
 				},
@@ -134,11 +139,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("1Gi"),
 					},
 				},
@@ -159,11 +165,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("500Gi"),
 					},
 				},
@@ -184,11 +191,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -207,11 +215,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size:             resource.MustParse("10Gi"),
 						StorageClassName: stringPtr("fast-storage"),
 					},
@@ -234,11 +243,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size:             resource.MustParse("10Gi"),
 						StorageClassName: stringPtr("longhorn"),
 					},
@@ -261,11 +271,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "production",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -287,11 +298,12 @@ func TestPVCBuilder_Build(t *testing.T) {
 					Namespace: "games",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 896660,
+					Game:  "valheim",
+					AppId: int32Ptr(896660),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size:             resource.MustParse("20Gi"),
 						StorageClassName: stringPtr("local-path"),
 					},
@@ -315,7 +327,7 @@ func TestPVCBuilder_Build(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewPVCBuilder(tt.server)
+			builder := NewPVCBuilder(tt.server, tt.gameDef)
 			pvc := builder.Build()
 			tt.checks(t, pvc)
 		})
@@ -341,17 +353,18 @@ func TestPVCBuilder_StorageSizeFormats(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game:  "test-game",
+					AppId: int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse(tt.size),
 					},
 				},
 			}
 
-			builder := NewPVCBuilder(server)
+			builder := NewPVCBuilder(server, nil)
 			pvc := builder.Build()
 
 			expectedSize := resource.MustParse(tt.expected)

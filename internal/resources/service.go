@@ -10,12 +10,14 @@ import (
 
 // ServiceBuilder builds a Service for a SteamServer.
 type ServiceBuilder struct {
-	server *boilerrv1alpha1.SteamServer
+	server  *boilerrv1alpha1.SteamServer
+	gameDef *boilerrv1alpha1.GameDefinition
 }
 
 // NewServiceBuilder creates a new ServiceBuilder.
-func NewServiceBuilder(server *boilerrv1alpha1.SteamServer) *ServiceBuilder {
-	return &ServiceBuilder{server: server}
+// gameDef can be nil for backwards compatibility (fallback mode).
+func NewServiceBuilder(server *boilerrv1alpha1.SteamServer, gameDef *boilerrv1alpha1.GameDefinition) *ServiceBuilder {
+	return &ServiceBuilder{server: server, gameDef: gameDef}
 }
 
 // Build creates the Service for the SteamServer.
@@ -42,6 +44,7 @@ func (b *ServiceBuilder) labels() map[string]string {
 		"app.kubernetes.io/name":       "steamserver",
 		"app.kubernetes.io/instance":   b.server.Name,
 		"app.kubernetes.io/managed-by": "boilerr",
+		"boilerr.dev/game":             b.server.Spec.Game,
 	}
 }
 
@@ -53,11 +56,24 @@ func (b *ServiceBuilder) getServiceType() corev1.ServiceType {
 	return corev1.ServiceTypeLoadBalancer
 }
 
+// getPorts returns the ports to expose.
+// Fallback: SteamServer.Ports -> GameDefinition.Ports -> empty
+func (b *ServiceBuilder) getPorts() []boilerrv1alpha1.ServerPort {
+	if len(b.server.Spec.Ports) > 0 {
+		return b.server.Spec.Ports
+	}
+	if b.gameDef != nil {
+		return b.gameDef.Spec.Ports
+	}
+	return nil
+}
+
 // buildServicePorts creates the service port definitions.
 func (b *ServiceBuilder) buildServicePorts() []corev1.ServicePort {
-	ports := make([]corev1.ServicePort, len(b.server.Spec.Ports))
+	ports := b.getPorts()
+	result := make([]corev1.ServicePort, len(ports))
 
-	for i, port := range b.server.Spec.Ports {
+	for i, port := range ports {
 		protocol := port.Protocol
 		if protocol == "" {
 			protocol = corev1.ProtocolUDP
@@ -68,7 +84,7 @@ func (b *ServiceBuilder) buildServicePorts() []corev1.ServicePort {
 			servicePort = port.ContainerPort
 		}
 
-		ports[i] = corev1.ServicePort{
+		result[i] = corev1.ServicePort{
 			Name:       port.Name,
 			Port:       servicePort,
 			TargetPort: intstr.FromInt32(port.ContainerPort),
@@ -76,7 +92,7 @@ func (b *ServiceBuilder) buildServicePorts() []corev1.ServicePort {
 		}
 	}
 
-	return ports
+	return result
 }
 
 // ServiceName returns the Service name for a SteamServer.

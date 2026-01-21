@@ -33,6 +33,49 @@ import (
 	"github.com/CraightonH/boilerr/internal/resources"
 )
 
+// createTestGameDefinition creates a GameDefinition for testing and waits for it to be ready.
+func createTestGameDefinition(name string, appID int32) *boilerrv1alpha1.GameDefinition {
+	gameDef := &boilerrv1alpha1.GameDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: boilerrv1alpha1.GameDefinitionSpec{
+			AppId:   appID,
+			Command: "/serverfiles/start.sh",
+			Ports: []boilerrv1alpha1.ServerPort{
+				{Name: "game", ContainerPort: 27015, Protocol: corev1.ProtocolUDP},
+			},
+		},
+	}
+	ExpectWithOffset(1, k8sClient.Create(ctx, gameDef)).Should(Succeed())
+
+	// Wait for the GameDefinition to be marked ready
+	gameDefKey := types.NamespacedName{Name: name}
+	EventuallyWithOffset(1, func() bool {
+		gd := &boilerrv1alpha1.GameDefinition{}
+		if err := k8sClient.Get(ctx, gameDefKey, gd); err != nil {
+			return false
+		}
+		return gd.Status.Ready
+	}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+	return gameDef
+}
+
+// deleteTestGameDefinition deletes a GameDefinition if it exists.
+func deleteTestGameDefinition(name string) {
+	gameDef := &boilerrv1alpha1.GameDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	_ = k8sClient.Delete(ctx, gameDef)
+	EventuallyWithOffset(1, func() bool {
+		err := k8sClient.Get(ctx, types.NamespacedName{Name: name}, &boilerrv1alpha1.GameDefinition{})
+		return errors.IsNotFound(err)
+	}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+}
+
 var _ = Describe("SteamServer Controller", func() {
 	const (
 		timeout  = time.Second * 10
@@ -41,6 +84,10 @@ var _ = Describe("SteamServer Controller", func() {
 
 	Context("When creating a SteamServer", func() {
 		It("Should create child resources", func() {
+			By("Creating the GameDefinition first")
+			gameDef := createTestGameDefinition("valheim", 896660)
+			defer deleteTestGameDefinition("valheim")
+
 			By("Creating a new SteamServer")
 			steamServer := &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
@@ -48,17 +95,18 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 896660,
+					Game: gameDef.Name,
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456, Protocol: corev1.ProtocolUDP},
 						{Name: "query", ContainerPort: 2457, Protocol: corev1.ProtocolUDP},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("20Gi"),
 					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, steamServer)).Should(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, steamServer) }()
 
 			steamServerLookupKey := types.NamespacedName{Name: "test-valheim", Namespace: "default"}
 			createdSteamServer := &boilerrv1alpha1.SteamServer{}
@@ -121,14 +169,15 @@ var _ = Describe("SteamServer Controller", func() {
 				}
 				return false
 			}, timeout, interval).Should(BeTrue())
-
-			By("Cleaning up")
-			Expect(k8sClient.Delete(ctx, steamServer)).Should(Succeed())
 		})
 	})
 
 	Context("When creating a SteamServer with config files", func() {
 		It("Should create a ConfigMap", func() {
+			By("Creating the GameDefinition first")
+			createTestGameDefinition("test-game-config", 123456)
+			defer deleteTestGameDefinition("test-game-config")
+
 			By("Creating a SteamServer with config files")
 			steamServer := &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
@@ -136,11 +185,11 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game: "test-game-config",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 					ConfigFiles: []boilerrv1alpha1.ConfigFile{
@@ -152,6 +201,7 @@ var _ = Describe("SteamServer Controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, steamServer)).Should(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, steamServer) }()
 
 			By("Checking that the ConfigMap is created")
 			cmLookupKey := types.NamespacedName{
@@ -167,14 +217,15 @@ var _ = Describe("SteamServer Controller", func() {
 
 			Expect(createdCm.Data).Should(HaveKey("config-0"))
 			Expect(createdCm.Data["config-0"]).Should(Equal("hostname MyServer"))
-
-			By("Cleaning up")
-			Expect(k8sClient.Delete(ctx, steamServer)).Should(Succeed())
 		})
 	})
 
 	Context("When creating a SteamServer without config files", func() {
 		It("Should not create a ConfigMap", func() {
+			By("Creating the GameDefinition first")
+			createTestGameDefinition("test-game-noconfig", 123456)
+			defer deleteTestGameDefinition("test-game-noconfig")
+
 			By("Creating a SteamServer without config files")
 			steamServer := &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
@@ -182,16 +233,17 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game: "test-game-noconfig",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, steamServer)).Should(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, steamServer) }()
 
 			By("Waiting for StatefulSet to be created")
 			stsLookupKey := types.NamespacedName{Name: "test-no-config", Namespace: "default"}
@@ -210,14 +262,15 @@ var _ = Describe("SteamServer Controller", func() {
 				err := k8sClient.Get(ctx, cmLookupKey, cm)
 				return errors.IsNotFound(err)
 			}, time.Second*2, interval).Should(BeTrue())
-
-			By("Cleaning up")
-			Expect(k8sClient.Delete(ctx, steamServer)).Should(Succeed())
 		})
 	})
 
 	Context("When creating a SteamServer with NodePort service type", func() {
 		It("Should create a NodePort Service", func() {
+			By("Creating the GameDefinition first")
+			createTestGameDefinition("test-game-nodeport", 123456)
+			defer deleteTestGameDefinition("test-game-nodeport")
+
 			By("Creating a SteamServer with NodePort")
 			steamServer := &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
@@ -225,17 +278,18 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId:       123456,
+					Game:        "test-game-nodeport",
 					ServiceType: corev1.ServiceTypeNodePort,
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, steamServer)).Should(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, steamServer) }()
 
 			By("Checking the Service type")
 			svcLookupKey := types.NamespacedName{Name: "test-nodeport", Namespace: "default"}
@@ -248,14 +302,15 @@ var _ = Describe("SteamServer Controller", func() {
 				}
 				return createdSvc.Spec.Type
 			}, timeout, interval).Should(Equal(corev1.ServiceTypeNodePort))
-
-			By("Cleaning up")
-			Expect(k8sClient.Delete(ctx, steamServer)).Should(Succeed())
 		})
 	})
 
 	Context("When deleting a SteamServer", func() {
 		It("Should remove the finalizer and allow deletion", func() {
+			By("Creating the GameDefinition first")
+			createTestGameDefinition("test-game-deletion", 123456)
+			defer deleteTestGameDefinition("test-game-deletion")
+
 			By("Creating a SteamServer")
 			steamServer := &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
@@ -263,11 +318,11 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game: "test-game-deletion",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
@@ -304,6 +359,10 @@ var _ = Describe("SteamServer Controller", func() {
 
 	Context("When updating a SteamServer", func() {
 		It("Should update child resources", func() {
+			By("Creating the GameDefinition first")
+			createTestGameDefinition("test-game-update", 123456)
+			defer deleteTestGameDefinition("test-game-update")
+
 			By("Creating a SteamServer")
 			steamServer := &boilerrv1alpha1.SteamServer{
 				ObjectMeta: metav1.ObjectMeta{
@@ -311,16 +370,17 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					AppId: 123456,
+					Game: "test-game-update",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
-					Storage: boilerrv1alpha1.StorageSpec{
+					Storage: &boilerrv1alpha1.StorageSpec{
 						Size: resource.MustParse("10Gi"),
 					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, steamServer)).Should(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, steamServer) }()
 
 			steamServerLookupKey := types.NamespacedName{Name: "test-update", Namespace: "default"}
 
@@ -350,9 +410,6 @@ var _ = Describe("SteamServer Controller", func() {
 				}
 				return len(svc.Spec.Ports)
 			}, timeout, interval).Should(Equal(2))
-
-			By("Cleaning up")
-			Expect(k8sClient.Delete(ctx, steamServer)).Should(Succeed())
 		})
 	})
 })
@@ -360,10 +417,16 @@ var _ = Describe("SteamServer Controller", func() {
 var _ = Describe("Controller Helper Functions", func() {
 	Context("commonLabels", func() {
 		It("Should return the correct labels", func() {
-			labels := commonLabels("my-server")
+			labels := commonLabels("my-server", "valheim")
 			Expect(labels["app.kubernetes.io/name"]).To(Equal("steamserver"))
 			Expect(labels["app.kubernetes.io/instance"]).To(Equal("my-server"))
 			Expect(labels["app.kubernetes.io/managed-by"]).To(Equal("boilerr"))
+			Expect(labels["boilerr.dev/game"]).To(Equal("valheim"))
+		})
+
+		It("Should not include game label when empty", func() {
+			labels := commonLabels("my-server", "")
+			Expect(labels).NotTo(HaveKey("boilerr.dev/game"))
 		})
 	})
 

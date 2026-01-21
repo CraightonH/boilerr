@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -28,9 +29,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	boilerrv1alpha1 "github.com/CraightonH/boilerr/api/v1alpha1"
+	"github.com/CraightonH/boilerr/internal/config"
 	"github.com/CraightonH/boilerr/internal/resources"
 )
 
@@ -48,6 +52,7 @@ type SteamServerReconciler struct {
 // +kubebuilder:rbac:groups=boilerr.dev,resources=steamservers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=boilerr.dev,resources=steamservers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=boilerr.dev,resources=steamservers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=boilerr.dev,resources=gamedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
@@ -84,25 +89,67 @@ func (r *SteamServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// 4. Reconcile child resources
-	if err := r.reconcileConfigMap(ctx, server); err != nil {
+	// 4. Fetch the referenced GameDefinition (cluster-scoped, no namespace)
+	gameDef, err := r.fetchGameDefinition(ctx, server)
+	if err != nil {
+		return r.setErrorStatus(ctx, server, "GameDefinition", err)
+	}
+
+	// 5. Check GameDefinition is ready
+	if gameDef != nil && !gameDef.Status.Ready {
+		err := fmt.Errorf("GameDefinition %q is not ready: %s", server.Spec.Game, gameDef.Status.Message)
+		if _, statusErr := r.setErrorStatus(ctx, server, "GameDefinition", err); statusErr != nil {
+			logger.Error(statusErr, "Failed to update status")
+		}
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+
+	// 6. Validate config against schema
+	if gameDef != nil && gameDef.Spec.ConfigSchema != nil {
+		if err := config.ValidateConfig(server.Spec.Config, gameDef.Spec.ConfigSchema); err != nil {
+			return r.setErrorStatus(ctx, server, "Config", err)
+		}
+	}
+
+	// 7. Reconcile child resources
+	if err := r.reconcileConfigMap(ctx, server, gameDef); err != nil {
 		return r.setErrorStatus(ctx, server, "ConfigMap", err)
 	}
 
-	if err := r.reconcilePVC(ctx, server); err != nil {
+	if err := r.reconcilePVC(ctx, server, gameDef); err != nil {
 		return r.setErrorStatus(ctx, server, "PVC", err)
 	}
 
-	if err := r.reconcileStatefulSet(ctx, server); err != nil {
+	if err := r.reconcileStatefulSet(ctx, server, gameDef); err != nil {
 		return r.setErrorStatus(ctx, server, "StatefulSet", err)
 	}
 
-	if err := r.reconcileService(ctx, server); err != nil {
+	if err := r.reconcileService(ctx, server, gameDef); err != nil {
 		return r.setErrorStatus(ctx, server, "Service", err)
 	}
 
-	// 5. Update status based on actual state
+	// 8. Update status based on actual state
 	return r.updateStatus(ctx, server)
+}
+
+// fetchGameDefinition fetches the GameDefinition referenced by the SteamServer.
+// Returns nil if no game is specified (fallback mode).
+func (r *SteamServerReconciler) fetchGameDefinition(ctx context.Context, server *boilerrv1alpha1.SteamServer) (*boilerrv1alpha1.GameDefinition, error) {
+	if server.Spec.Game == "" {
+		// Fallback mode: no GameDefinition, all values from SteamServer spec
+		return nil, nil
+	}
+
+	var gameDef boilerrv1alpha1.GameDefinition
+	// GameDefinition is cluster-scoped, so no namespace in the key
+	if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.Game}, &gameDef); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, fmt.Errorf("GameDefinition %q not found", server.Spec.Game)
+		}
+		return nil, err
+	}
+
+	return &gameDef, nil
 }
 
 // handleDeletion handles the deletion of a SteamServer resource.
@@ -127,7 +174,7 @@ func (r *SteamServerReconciler) handleDeletion(ctx context.Context, server *boil
 }
 
 // reconcileConfigMap ensures the ConfigMap exists if config files are specified.
-func (r *SteamServerReconciler) reconcileConfigMap(ctx context.Context, server *boilerrv1alpha1.SteamServer) error {
+func (r *SteamServerReconciler) reconcileConfigMap(ctx context.Context, server *boilerrv1alpha1.SteamServer, _ *boilerrv1alpha1.GameDefinition) error {
 	logger := log.FromContext(ctx)
 
 	// Skip if no config files
@@ -143,7 +190,7 @@ func (r *SteamServerReconciler) reconcileConfigMap(ctx context.Context, server *
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, configMap, func() error {
-		configMap.Labels = commonLabels(server.Name)
+		configMap.Labels = commonLabels(server.Name, server.Spec.Game)
 		configMap.Data = make(map[string]string)
 
 		for i, cf := range server.Spec.ConfigFiles {
@@ -166,11 +213,16 @@ func (r *SteamServerReconciler) reconcileConfigMap(ctx context.Context, server *
 }
 
 // reconcilePVC ensures the PVC exists for the SteamServer.
-func (r *SteamServerReconciler) reconcilePVC(ctx context.Context, server *boilerrv1alpha1.SteamServer) error {
+func (r *SteamServerReconciler) reconcilePVC(ctx context.Context, server *boilerrv1alpha1.SteamServer, gameDef *boilerrv1alpha1.GameDefinition) error {
 	logger := log.FromContext(ctx)
 
-	pvcBuilder := resources.NewPVCBuilder(server)
+	pvcBuilder := resources.NewPVCBuilder(server, gameDef)
 	desiredPVC := pvcBuilder.Build()
+
+	if desiredPVC == nil {
+		// No storage configured
+		return nil
+	}
 
 	existingPVC := &corev1.PersistentVolumeClaim{}
 	err := r.Get(ctx, client.ObjectKey{
@@ -201,10 +253,10 @@ func (r *SteamServerReconciler) reconcilePVC(ctx context.Context, server *boiler
 }
 
 // reconcileStatefulSet ensures the StatefulSet exists and is up to date.
-func (r *SteamServerReconciler) reconcileStatefulSet(ctx context.Context, server *boilerrv1alpha1.SteamServer) error {
+func (r *SteamServerReconciler) reconcileStatefulSet(ctx context.Context, server *boilerrv1alpha1.SteamServer, gameDef *boilerrv1alpha1.GameDefinition) error {
 	logger := log.FromContext(ctx)
 
-	stsBuilder := resources.NewStatefulSetBuilder(server)
+	stsBuilder := resources.NewStatefulSetBuilder(server, gameDef)
 	desiredSTS := stsBuilder.Build()
 
 	// Set owner reference before create/update
@@ -234,10 +286,10 @@ func (r *SteamServerReconciler) reconcileStatefulSet(ctx context.Context, server
 }
 
 // reconcileService ensures the Service exists and is up to date.
-func (r *SteamServerReconciler) reconcileService(ctx context.Context, server *boilerrv1alpha1.SteamServer) error {
+func (r *SteamServerReconciler) reconcileService(ctx context.Context, server *boilerrv1alpha1.SteamServer, gameDef *boilerrv1alpha1.GameDefinition) error {
 	logger := log.FromContext(ctx)
 
-	svcBuilder := resources.NewServiceBuilder(server)
+	svcBuilder := resources.NewServiceBuilder(server, gameDef)
 	desiredSVC := svcBuilder.Build()
 
 	existingSVC := &corev1.Service{}
@@ -317,7 +369,7 @@ func (r *SteamServerReconciler) updateStatus(ctx context.Context, server *boiler
 
 	// Requeue if not yet running to check for state changes
 	if newState != boilerrv1alpha1.ServerStateRunning {
-		return ctrl.Result{RequeueAfter: 10_000_000_000}, nil // 10 seconds
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -471,6 +523,26 @@ func (r *SteamServerReconciler) stateMessage(state boilerrv1alpha1.ServerState) 
 	}
 }
 
+// findSteamServersForGameDef returns reconcile requests for all SteamServers that reference a GameDefinition.
+func (r *SteamServerReconciler) findSteamServersForGameDef(ctx context.Context, obj client.Object) []reconcile.Request {
+	gameDef := obj.(*boilerrv1alpha1.GameDefinition)
+
+	var serverList boilerrv1alpha1.SteamServerList
+	if err := r.List(ctx, &serverList); err != nil {
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, server := range serverList.Items {
+		if server.Spec.Game == gameDef.Name {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&server),
+			})
+		}
+	}
+	return requests
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *SteamServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -479,17 +551,25 @@ func (r *SteamServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
 		Owns(&corev1.ConfigMap{}).
+		Watches(
+			&boilerrv1alpha1.GameDefinition{},
+			handler.EnqueueRequestsFromMapFunc(r.findSteamServersForGameDef),
+		).
 		Named("steamserver").
 		Complete(r)
 }
 
 // commonLabels returns the common labels for managed resources.
-func commonLabels(name string) map[string]string {
-	return map[string]string{
+func commonLabels(name, game string) map[string]string {
+	labels := map[string]string{
 		"app.kubernetes.io/name":       "steamserver",
 		"app.kubernetes.io/instance":   name,
 		"app.kubernetes.io/managed-by": "boilerr",
 	}
+	if game != "" {
+		labels["boilerr.dev/game"] = game
+	}
+	return labels
 }
 
 // hasLabels checks if actual labels contain all expected labels.

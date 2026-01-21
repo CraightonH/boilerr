@@ -177,6 +177,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := (&controller.GameDefinitionReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GameDefinition")
+		os.Exit(1)
+	}
+
 	if err := (&controller.SteamServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
