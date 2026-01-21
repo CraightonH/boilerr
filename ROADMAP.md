@@ -4,25 +4,48 @@ A phased approach to building the Kubernetes operator for Steam dedicated game s
 
 ---
 
-## Phase 2: Core Operator - Generic SteamServer CRD
+## Phase 2: Core Operator - SteamServer + GameDefinition CRDs
 
-Build the generic `SteamServer` CRD that can run any SteamCMD-compatible game.
+Build the `GameDefinition` and `SteamServer` CRDs. GameDefinition defines how to install/run a game; SteamServer references a GameDefinition to deploy an instance.
 
-### 2.1 CRD Definition
+### 2.1 CRD Definitions
+
+#### GameDefinition CRD
+- [ ] Define `GameDefinition` API types (`api/v1alpha1/gamedefinition_types.go`)
+- [ ] Implement spec fields:
+  - [ ] `appId` - Steam application ID
+  - [ ] `image` - Container image (default: `steamcmd/steamcmd:ubuntu-22`)
+  - [ ] `command` - Game server startup command
+  - [ ] `args` - Default startup arguments
+  - [ ] `installDir` - SteamCMD install directory path
+  - [ ] `ports` - Default ports with protocol (TCP/UDP)
+  - [ ] `env` - Default environment variables
+  - [ ] `configFiles` - Config file templates (path + content template)
+  - [ ] `healthCheck` - Health check configuration
+- [ ] Implement config mapping for user-facing settings:
+  - [ ] `configSchema` - Map of user config keys to arg/env/file mappings
+- [ ] Generate CRD manifests with `make manifests`
+
+#### SteamServer CRD
 - [ ] Define `SteamServer` API types (`api/v1alpha1/steamserver_types.go`)
-- [ ] Implement spec fields: `appId`, `ports`, `command`, `args`, `env`
-- [ ] Implement spec fields: `storage`, `resources`, `serviceType`
+- [ ] Implement spec fields:
+  - [ ] `game` - Reference to GameDefinition by name
+  - [ ] `config` - User-provided game configuration (map[string]string)
+  - [ ] `storage` - PVC size and storage class
+  - [ ] `resources` - CPU/memory requests and limits
+  - [ ] `serviceType` - LoadBalancer, NodePort, ClusterIP
 - [ ] Add optional fields: `beta`, `validate`, `anonymous`, `steamCredentialsSecret`
 - [ ] Define status fields: `state`, `address`, `ports`, `lastUpdated`, `appBuildId`, `message`
-- [ ] Generate CRD manifests with `make manifests`
 - [ ] Add OpenAPI validation schema with proper defaults
 
 ### 2.2 Resource Builders
 - [ ] Create StatefulSet builder (`internal/resources/statefulset.go`)
-  - [ ] Init container with SteamCMD download logic
-  - [ ] Main container with game server command
+  - [ ] Init container using `steamcmd/steamcmd` image
+  - [ ] Build SteamCMD args from GameDefinition (login, force_install_dir, app_update, quit)
+  - [ ] Main container command/args from GameDefinition + SteamServer config
   - [ ] Volume mounts for persistent storage
-  - [ ] Environment variable injection
+  - [ ] Environment variable injection from GameDefinition + SteamServer
+  - [ ] Config file generation from templates
 - [ ] Create Service builder (`internal/resources/service.go`)
   - [ ] Support LoadBalancer, NodePort, ClusterIP
   - [ ] Handle multiple ports (game, query, RCON)
@@ -32,9 +55,15 @@ Build the generic `SteamServer` CRD that can run any SteamCMD-compatible game.
   - [ ] Proper access modes
 
 ### 2.3 Controller Implementation
-- [ ] Scaffold controller with Kubebuilder
-- [ ] Implement reconciliation loop
+- [ ] Scaffold controllers with Kubebuilder
+- [ ] Implement GameDefinition controller
+  - [ ] Watch `GameDefinition` resources
+  - [ ] Validate GameDefinition spec
+  - [ ] Update status (ready/error)
+- [ ] Implement SteamServer controller
   - [ ] Watch `SteamServer` resources
+  - [ ] Fetch referenced GameDefinition
+  - [ ] Validate SteamServer config against GameDefinition schema
   - [ ] Generate desired state (PVC, StatefulSet, Service)
   - [ ] Compare with actual cluster state
   - [ ] Apply diffs with proper ownership references
@@ -44,102 +73,96 @@ Build the generic `SteamServer` CRD that can run any SteamCMD-compatible game.
   - [ ] Error handling and message propagation
 - [ ] Add finalizers for cleanup on deletion
 
-### 2.4 SteamCMD Integration
-- [ ] Create init container script generator (`internal/steamcmd/scripts.go`)
+### 2.4 SteamCMD Command Builder
+- [ ] Create command builder (`internal/steamcmd/command.go`)
+- [ ] Build args slice from GameDefinition + SteamServer spec
 - [ ] Handle anonymous vs authenticated login
-- [ ] Implement beta branch selection
+- [ ] Implement beta branch selection (`+app_update <id> -beta <branch>`)
 - [ ] Add validation flag support
-- [ ] Handle Steam Guard (document limitations)
+- [ ] Document Steam Guard limitations
 
-### 2.5 Testing - Generic CRD
+### 2.5 Testing - Core CRDs
 - [ ] Unit tests for resource builders
 - [ ] Unit tests for controller reconciliation logic
+- [ ] Unit tests for SteamCMD command builder
 - [ ] Integration tests with envtest
 - [ ] E2E tests with kind cluster
-- [ ] Test manual game server deployment (pick one simple game)
+- [ ] Test with sample GameDefinition + SteamServer
 
 ---
 
-## Phase 3: Game-Specific CRDs
+## Phase 3: Bundled GameDefinitions
 
-Add first-class support for popular games with typed configurations.
+Create GameDefinition manifests for popular games. These ship with the Helm chart.
 
-### 3.1 Shared Infrastructure
-- [ ] Create base types for common fields (`api/v1alpha1/common_types.go`)
-- [ ] Implement CRD inheritance/embedding pattern
-- [ ] Create game config template system
+### 3.1 GameDefinition Template
+- [ ] Create example/template GameDefinition with documentation
+- [ ] Document configSchema mapping patterns (arg, env, configFile)
+- [ ] Create contribution guide for adding new games
 
-### 3.2 ValheimServer CRD
-- [ ] Define `ValheimServer` types with game-specific fields
-  - [ ] `serverName`, `worldName`, `password`
-  - [ ] `public`, `crossplay`, `admins`
-- [ ] Create Valheim-specific controller (or extend generic)
-- [ ] Generate startup command and config files
-- [ ] Add config file mounting for admins.txt, etc.
-- [ ] Write Valheim-specific tests
-- [ ] Document Valheim-specific usage
+### 3.2 Valheim
+- [ ] Create `gamedefinitions/valheim.yaml`
+- [ ] App ID: 896660, ports: 2456-2458/UDP
+- [ ] Config mappings: serverName, worldName, password, public, crossplay
+- [ ] Config file template: adminlist.txt
+- [ ] Test deployment and document
 
-### 3.3 SatisfactoryServer CRD
-- [ ] Define `SatisfactoryServer` types
-  - [ ] `serverName`, `maxPlayers`
-  - [ ] `autoPause`, `autoSaveOnDisconnect`, `networkQuality`
-- [ ] Implement controller logic
-- [ ] Handle Satisfactory's specific startup requirements
-- [ ] Write tests and documentation
+### 3.3 Satisfactory
+- [ ] Create `gamedefinitions/satisfactory.yaml`
+- [ ] App ID: 1690800, ports: 7777/UDP+TCP, 15000/UDP, 15777/UDP
+- [ ] Config mappings: maxPlayers, autosaveInterval, networkQuality
+- [ ] Test deployment and document
 
-### 3.4 PalworldServer CRD
-- [ ] Define `PalworldServer` types
-  - [ ] `serverName`, `adminPassword`, `serverPassword`
-  - [ ] `maxPlayers`, `difficulty`, `deathPenalty`
-  - [ ] Rate multipliers: `expRate`, `captureRate`
-- [ ] Implement controller logic
-- [ ] Generate PalWorldSettings.ini
-- [ ] Write tests and documentation
+### 3.4 Palworld
+- [ ] Create `gamedefinitions/palworld.yaml`
+- [ ] App ID: 2394010, ports: 8211/UDP
+- [ ] Config mappings: serverName, password, maxPlayers, difficulty
+- [ ] Config file template: PalWorldSettings.ini
+- [ ] Test deployment and document
 
-### 3.5 FactorioServer CRD
-- [ ] Define `FactorioServer` types
-  - [ ] `serverName`, `description`, `maxPlayers`
-  - [ ] `visibility`, `autosaveInterval`, `allowCommands`
-  - [ ] `admins`, `factorioCredentials`
-- [ ] Implement controller logic
-- [ ] Generate server-settings.json
-- [ ] Write tests and documentation
+### 3.5 7 Days to Die
+- [ ] Create `gamedefinitions/7daystodie.yaml`
+- [ ] App ID: 294420, ports: 26900/TCP+UDP, 26901-26902/UDP
+- [ ] Config mappings: serverName, worldGenSeed, worldGenSize, gameMode
+- [ ] Config file template: serverconfig.xml
+- [ ] Test deployment and document
 
-### 3.6 SevenDaysServer CRD
-- [ ] Define `SevenDaysServer` types
-  - [ ] World settings: `worldGenSeed`, `worldGenSize`, `gameWorld`
-  - [ ] Gameplay: `gameMode`, `difficulty`
-  - [ ] Day/night: `dayNightLength`, `dayLightLength`
-  - [ ] Zombies: `zombieMove`, `bloodMoonFrequency`
-- [ ] Implement controller logic
-- [ ] Generate serverconfig.xml
-- [ ] Write tests and documentation
+### 3.6 V Rising
+- [ ] Create `gamedefinitions/vrising.yaml`
+- [ ] App ID: 1829350, ports: 9876-9877/UDP
+- [ ] Config mappings: serverName, password, maxPlayers, gameMode
+- [ ] Config file templates: ServerHostSettings.json, ServerGameSettings.json
+- [ ] Test deployment and document
 
-### 3.7 VRisingServer CRD
-- [ ] Define `VRisingServer` types
-  - [ ] `serverName`, `password`, `maxPlayers`
-  - [ ] `gameMode`, `difficultyPreset`, `clanSize`
-  - [ ] RCON configuration
-- [ ] Implement controller logic
-- [ ] Generate ServerHostSettings.json and ServerGameSettings.json
-- [ ] Write tests and documentation
+### 3.7 Enshrouded
+- [ ] Create `gamedefinitions/enshrouded.yaml`
+- [ ] App ID: 2278520, ports: 15636-15637/UDP
+- [ ] Config mappings: serverName, password, maxPlayers
+- [ ] Config file template: enshrouded_server.json
+- [ ] Test deployment and document
 
-### 3.8 EnshroudedServer CRD
-- [ ] Define `EnshroudedServer` types
-  - [ ] `serverName`, `password`, `maxPlayers`
-  - [ ] `saveDirectory`, `logDirectory`
-- [ ] Implement controller logic
-- [ ] Generate enshrouded_server.json
-- [ ] Write tests and documentation
+### 3.8 Project Zomboid
+- [ ] Create `gamedefinitions/projectzomboid.yaml`
+- [ ] App ID: 380870, ports: 16261/UDP, 16262-16272/TCP
+- [ ] Config mappings: serverName, password, maxPlayers, publicServer
+- [ ] Config file template: server.ini
+- [ ] Test deployment and document
 
-### 3.9 TerrariaServer CRD
-- [ ] Define `TerrariaServer` types
-  - [ ] `variant` (vanilla/tshock)
-  - [ ] World settings: `worldName`, `worldSize`, `difficulty`, `seed`
-  - [ ] tShock-specific: `restApiEnabled`, `restApiPort`
-- [ ] Implement controller logic
-- [ ] Generate serverconfig.txt
-- [ ] Write tests and documentation
+### 3.9 Terraria (tShock)
+- [ ] Create `gamedefinitions/terraria.yaml`
+- [ ] App ID: 105600 (or tShock container), ports: 7777/TCP
+- [ ] Config mappings: worldName, maxPlayers, password, difficulty
+- [ ] Config file template: serverconfig.txt
+- [ ] Test deployment and document
+
+### 3.10 Additional Games (community-driven)
+- [ ] ARK: Survival Evolved
+- [ ] Rust
+- [ ] Counter-Strike 2
+- [ ] Team Fortress 2
+- [ ] Left 4 Dead 2
+- [ ] Conan Exiles
+- [ ] The Forest
 
 ---
 
@@ -149,7 +172,7 @@ Package the operator for easy installation.
 
 ### 4.1 Container Images
 - [ ] Create optimized multi-stage Dockerfile for operator
-- [ ] Create/select base SteamCMD image
+- [ ] Document use of `steamcmd/steamcmd:ubuntu-22` as game server base
 - [ ] Set up automated image builds on release
 - [ ] Push to container registry (GHCR, Docker Hub)
 - [ ] Implement image signing (cosign)
@@ -166,6 +189,10 @@ Package the operator for easy installation.
 - [ ] Parameterize common options (image, resources, replicas)
 - [ ] Add values for RBAC configuration
 - [ ] Add values for operator configuration
+- [ ] Bundle GameDefinitions from Phase 3
+  - [ ] Include all bundled GameDefinitions in `templates/gamedefinitions/`
+  - [ ] Add `gameDefinitions.enabled` value (default: true)
+  - [ ] Allow selective game enablement via values
 - [ ] Document Helm installation
 - [ ] Publish to Helm repository (or GitHub Pages)
 
@@ -348,7 +375,7 @@ Implement features from the "Future Work" section.
 - [ ] Restore functionality (manual trigger)
 
 ### 9.2 RCON Integration
-- [ ] Add RCON configuration to game CRDs
+- [ ] Add RCON configuration to GameDefinition spec
 - [ ] Create RCON client library
 - [ ] Expose RCON commands via CR annotation or sub-resource
 - [ ] Web UI: RCON console component
@@ -362,10 +389,10 @@ Implement features from the "Future Work" section.
 - [ ] Metrics: `steamserver_players_current`
 
 ### 9.4 Steam Workshop Mods
-- [ ] Add `mods` field to CRDs (list of workshop IDs)
+- [ ] Add `mods` field to SteamServer spec (list of workshop IDs)
 - [ ] Extend SteamCMD init to download workshop items
 - [ ] Handle mod load order configuration
-- [ ] Document mod support per game
+- [ ] Document mod support per GameDefinition
 
 ### 9.5 Player-Aware Updates
 - [ ] Add update strategy to CRD spec
@@ -438,9 +465,9 @@ Items to consider for future versions:
 
 | Version | Target | Key Features |
 |---------|--------|--------------|
-| v0.1.0 | Phase 2 complete | Generic SteamServer CRD working |
-| v0.2.0 | Phase 3 complete | All game-specific CRDs |
-| v0.3.0 | Phase 4 complete | Helm chart, easy installation |
+| v0.1.0 | Phase 2 complete | GameDefinition + SteamServer CRDs working |
+| v0.2.0 | Phase 3 complete | Bundled GameDefinitions for popular games |
+| v0.3.0 | Phase 4 complete | Helm chart with bundled games, easy installation |
 | v0.4.0 | Phase 5-6 complete | Web UI with direct apply |
 | v0.5.0 | Phase 7 complete | GitOps integration |
 | v0.6.0 | Phase 8 complete | Observability |
@@ -450,7 +477,9 @@ Items to consider for future versions:
 
 ## Notes
 
-- Prioritize the generic `SteamServer` CRD first - it unblocks all other games
-- Game-specific CRDs can be added incrementally; start with Valheim (most popular)
+- `GameDefinition` CRD enables extensibility - users can add games without operator changes
+- `SteamServer` CRD references a GameDefinition - keeps user-facing config simple
+- Uses `steamcmd/steamcmd` container directly - no custom images per game
+- Adding a new game = PR a GameDefinition YAML file (no Go code required)
 - Web UI can be developed in parallel with operator once CRD schemas are stable
-- Consider community contributions for game-specific CRDs after v0.2.0
+- Community contributions welcome for GameDefinitions after v0.1.0

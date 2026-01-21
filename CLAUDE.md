@@ -4,20 +4,29 @@
 
 Boilerr is a Kubernetes operator for managing Steam dedicated game servers. It uses Kubebuilder to scaffold CRDs and controllers, allowing users to deploy game servers via custom resources.
 
-**Status:** Design phase - implementation starting from scratch following ROADMAP.md
+**Status:** Phase 2 in progress - refactoring to GameDefinition architecture
 
 ## Architecture
 
 - **Language:** Go
 - **Framework:** Kubebuilder (controller-runtime)
-- **CRDs:** Generic `SteamServer` + game-specific CRDs (ValheimServer, SatisfactoryServer, etc.)
-- **Resources Generated:** StatefulSet, PVC, Service per game server
+- **CRDs:** `GameDefinition` (defines games) + `SteamServer` (user deploys servers)
+- **Container:** Uses `steamcmd/steamcmd:ubuntu-22` directly - no custom images per game
+- **Resources Generated:** StatefulSet, PVC, Service, ConfigMap per game server
+
+### Two-CRD Pattern
+
+1. **GameDefinition** (cluster-scoped) - Defines how to install/run a game. Maintained by operator/community. Bundled via Helm.
+2. **SteamServer** (namespaced) - User creates to deploy a server. References a GameDefinition by name.
+
+This enables extensibility: adding new games = YAML file, not Go code.
 
 ## Key Documents
 
 - `DESIGN.md` - Architecture decisions, CRD schemas, reconciliation patterns
 - `ROADMAP.md` - Phased task breakdown, current progress
 - `ROADMAP_COMPLETED.md` - Completed roadmap items archive
+- `docs/REFACTOR_PLAN.md` - **ACTIVE** - Detailed refactor plan for GameDefinition migration
 
 ## Development Workflow
 
@@ -55,18 +64,21 @@ make run
 ## Code Structure (Kubebuilder conventions)
 
 ```
-api/v1alpha1/           # CRD type definitions
-  steamserver_types.go  # Generic SteamServer CRD
-  valheimserver_types.go # Game-specific CRDs
-  common_types.go       # Shared field types
+api/v1alpha1/               # CRD type definitions
+  gamedefinition_types.go   # GameDefinition CRD
+  steamserver_types.go      # SteamServer CRD
+  common_types.go           # Shared field types
 internal/
-  controller/           # Reconciliation logic
-  resources/            # K8s resource builders (StatefulSet, Service, PVC)
-  steamcmd/             # SteamCMD script generation
+  controller/               # Reconciliation logic
+  resources/                # K8s resource builders (StatefulSet, Service, PVC)
+  steamcmd/                 # SteamCMD command builder (NOT script generator)
+  config/                   # Config interpolation utilities
 config/
-  crd/                  # Generated CRD YAML
-  rbac/                 # RBAC manifests
-  manager/              # Operator deployment
+  crd/                      # Generated CRD YAML
+  rbac/                     # RBAC manifests
+  manager/                  # Operator deployment
+charts/boilerr/             # Helm chart
+  templates/gamedefinitions/ # Bundled GameDefinitions
 ```
 
 ## Coding Guidelines
@@ -97,25 +109,29 @@ config/
 
 ## Common Tasks
 
-### Adding a New Game CRD
+### Adding a New Game (GameDefinition)
 
-1. Define types in `api/v1alpha1/<game>server_types.go`
-2. Add game-specific fields (world name, mods, etc.)
-3. Embed `SteamServerSpec` for common fields
-4. Run `make manifests generate`
-5. Add controller or extend existing reconciler
-6. Add game config defaults (app ID, default ports, startup command template)
+No Go code needed! Create a YAML file:
+
+1. Create `charts/boilerr/templates/gamedefinitions/<game>.yaml`
+2. Define: `appId`, `command`, `args`, `ports`, `configSchema`
+3. Test with `kubectl apply -f` and create a SteamServer referencing it
+4. Add to Helm chart values for selective enablement
+
+See `docs/REFACTOR_PLAN.md` for GameDefinition schema details.
 
 ### Reconciler Pattern
 
 ```go
 func (r *SteamServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-    // 1. Fetch the CR
-    // 2. Handle deletion (finalizers)
-    // 3. Build desired resources
-    // 4. Create or update each resource
-    // 5. Update CR status
-    // 6. Return (requeue if needed)
+    // 1. Fetch the SteamServer CR
+    // 2. Fetch the referenced GameDefinition (by spec.game)
+    // 3. Validate config against GameDefinition.configSchema
+    // 4. Handle deletion (finalizers)
+    // 5. Build desired resources (pass both CRs to builders)
+    // 6. Create or update each resource
+    // 7. Update CR status
+    // 8. Return (requeue if needed)
 }
 ```
 
