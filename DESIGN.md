@@ -2,14 +2,15 @@
 
 ## Overview
 
-A Kubernetes operator that simplifies deploying and managing Steam dedicated game servers. Instead of writing bespoke Dockerfiles and K8s manifests for each game, users define a `SteamServer` custom resource and the operator handles the rest.
+A Kubernetes operator that simplifies deploying and managing Steam dedicated game servers. Users define a `SteamServer` custom resource referencing a `GameDefinition`, and the operator handles the rest—no custom Dockerfiles or complex K8s manifests required.
 
 ### Goals
 
-- **Generic by default**: Support any game SteamCMD can install with minimal config
-- **Extensible**: Allow game-specific CRDs for first-class support of popular titles
+- **User-friendly**: Non-K8s experts can deploy game servers with simple config
+- **Extensible**: Anyone can add new games via GameDefinition YAML (no code changes)
 - **Low overhead**: Reduce boilerplate for spinning up new game servers
 - **Kubernetes-native**: Leverage existing K8s primitives (StatefulSets, PVCs, Services)
+- **No custom images**: Use `steamcmd/steamcmd` container directly, configured at runtime
 
 ### Non-Goals (v1)
 
@@ -22,42 +23,180 @@ A Kubernetes operator that simplifies deploying and managing Steam dedicated gam
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Kubernetes Cluster                        │
-│                                                              │
-│  ┌──────────────┐       ┌─────────────────────────────────┐ │
-│  │  SteamServer │       │         Operator Pod            │ │
-│  │      CR      │──────▶│  - Watches SteamServer CRs      │ │
-│  └──────────────┘       │  - Reconciles to K8s resources  │ │
-│                         └─────────────────────────────────┘ │
-│                                      │                       │
-│                                      ▼                       │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │                   Per-Game Resources                     ││
-│  │  ┌─────────┐  ┌──────────────┐  ┌─────────────────────┐ ││
-│  │  │   PVC   │  │ StatefulSet  │  │      Service        │ ││
-│  │  │ (saves) │  │ - init: SCMD │  │ (LoadBalancer/NP)   │ ││
-│  │  │         │  │ - main: game │  │                     │ ││
-│  │  └─────────┘  └──────────────┘  └─────────────────────┘ ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                      Kubernetes Cluster                           │
+│                                                                   │
+│  ┌────────────────┐  ┌──────────────┐                            │
+│  │ GameDefinition │  │  SteamServer │                            │
+│  │  (per game)    │  │   (user CR)  │                            │
+│  │                │  │              │                            │
+│  │ - appId        │◀─│ - game: ref  │                            │
+│  │ - command      │  │ - config     │                            │
+│  │ - ports        │  │ - storage    │                            │
+│  │ - configSchema │  │ - resources  │                            │
+│  └────────────────┘  └──────┬───────┘                            │
+│                             │                                     │
+│                             ▼                                     │
+│                ┌─────────────────────────────┐                   │
+│                │       Operator Pod          │                   │
+│                │ - Watches GameDefinitions   │                   │
+│                │ - Watches SteamServers      │                   │
+│                │ - Reconciles to K8s resources│                   │
+│                └──────────────┬──────────────┘                   │
+│                               │                                   │
+│                               ▼                                   │
+│  ┌───────────────────────────────────────────────────────────┐   │
+│  │                   Per-Server Resources                     │   │
+│  │  ┌─────────┐  ┌───────────────────────┐  ┌─────────────┐  │   │
+│  │  │   PVC   │  │     StatefulSet       │  │   Service   │  │   │
+│  │  │ (saves) │  │ init: steamcmd/steamcmd│  │ (LB/NP/CIP)│  │   │
+│  │  │         │  │ main: steamcmd/steamcmd│  │             │  │   │
+│  │  └─────────┘  └───────────────────────┘  └─────────────┘  │   │
+│  └───────────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Reconciliation Loop
 
-1. Watch for `SteamServer` (or game-specific) CR events
-2. Generate desired state: PVC, StatefulSet, Service, ConfigMaps
-3. Compare with actual state in cluster
-4. Apply diffs (create/update/delete resources)
-5. Update CR status with server state, IP, ports
+1. Watch for `SteamServer` CR events
+2. Fetch referenced `GameDefinition`
+3. Merge GameDefinition defaults with SteamServer config
+4. Generate desired state: PVC, StatefulSet, Service, ConfigMaps
+5. Compare with actual state in cluster
+6. Apply diffs (create/update/delete resources)
+7. Update CR status with server state, IP, ports
 
 ---
 
 ## Custom Resource Definitions
 
-### Option A: Single Generic CRD
+### Two-CRD Architecture
 
-One CRD that works for any game. Users must provide all configuration.
+Boilerr uses two CRDs that work together:
+
+1. **GameDefinition** - Defines how to install and run a specific game (created by operator/community)
+2. **SteamServer** - User-facing CR that references a GameDefinition to deploy a server instance
+
+This separation allows:
+- Users to deploy servers without knowing game internals
+- Community to contribute new games without operator code changes
+- Helm chart to bundle popular GameDefinitions out of the box
+
+### GameDefinition CRD
+
+Defines everything needed to install and run a Steam game server. Typically created by the operator maintainers or community contributors.
+
+```yaml
+apiVersion: boilerr.dev/v1alpha1
+kind: GameDefinition
+metadata:
+  name: valheim
+spec:
+  # Steam App ID for the dedicated server
+  appId: 896660
+
+  # Container image (default: steamcmd/steamcmd:ubuntu-22)
+  image: steamcmd/steamcmd:ubuntu-22
+
+  # Where SteamCMD installs the game
+  installDir: /data/server
+
+  # Game server startup command
+  command: /data/server/valheim_server.x86_64
+
+  # Default startup arguments (can reference config via {{.Config.key}})
+  args:
+    - "-name"
+    - "{{.Config.serverName}}"
+    - "-world"
+    - "{{.Config.worldName}}"
+    - "-password"
+    - "{{.Config.password}}"
+    - "-port"
+    - "2456"
+    - "-public"
+    - "{{.Config.public}}"
+
+  # Default ports
+  ports:
+    - name: game
+      port: 2456
+      protocol: UDP
+    - name: query
+      port: 2457
+      protocol: UDP
+
+  # Default environment variables
+  env:
+    - name: SteamAppId
+      value: "892970"  # Valheim client app ID for Steam networking
+
+  # Config schema - defines user-facing configuration options
+  # Maps user config keys to how they're used (args, env, or configFile)
+  configSchema:
+    serverName:
+      description: "Server name shown in browser"
+      default: "My Valheim Server"
+      required: true
+    worldName:
+      description: "World/save name"
+      default: "Dedicated"
+      required: true
+    password:
+      description: "Server password (min 5 chars)"
+      secret: true
+      required: true
+    public:
+      description: "List on public server browser"
+      default: "0"
+      enum: ["0", "1"]
+    crossplay:
+      description: "Enable crossplay"
+      default: "false"
+      mapTo:
+        type: arg
+        value: "-crossplay"
+        condition: "true"  # only add arg if value is "true"
+    admins:
+      description: "List of Steam IDs for admin access"
+      array: true
+      mapTo:
+        type: configFile
+        path: /data/server/adminlist.txt
+        template: "{{range .}}{{.}}\n{{end}}"
+
+  # Config file templates (static files the game needs)
+  configFiles:
+    - path: /data/server/permittedlist.txt
+      content: ""  # empty by default
+
+  # Default resource recommendations
+  defaultResources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+
+  # Default storage size
+  defaultStorage: 20Gi
+
+  # Health check configuration
+  healthCheck:
+    tcpSocket:
+      port: 2456
+    initialDelaySeconds: 120
+    periodSeconds: 30
+
+status:
+  ready: true
+  message: "GameDefinition validated successfully"
+```
+
+### SteamServer CRD
+
+User-facing CR for deploying a game server instance. References a GameDefinition by name.
 
 ```yaml
 apiVersion: boilerr.dev/v1alpha1
@@ -66,70 +205,30 @@ metadata:
   name: valheim-prod
   namespace: game-servers
 spec:
-  # Required: Steam App ID for the dedicated server
-  appId: 896660
-  
-  # Optional: Beta branch
-  # beta: "public-test"
-  
-  # Optional: Run steamcmd validate on startup (default: true)
-  validate: true
-  
-  # Optional: Anonymous login. If false, provide credentials secret
-  anonymous: true
-  # steamCredentialsSecret: steam-login  # if anonymous: false
-  
-  # Container image for steamcmd (operator may provide default)
-  image: steamcmd/steamcmd:latest
-  
-  # Ports to expose
-  ports:
-    - name: game
-      containerPort: 2456
-      servicePort: 2456
-      protocol: UDP
-    - name: query
-      containerPort: 2457
-      servicePort: 2457
-      protocol: UDP
-  
-  # Startup command and arguments
-  command: ["/bin/bash", "-c"]
-  args:
-    - |
-      cd /serverfiles
-      ./valheim_server.x86_64 \
-        -name "$(SERVER_NAME)" \
-        -world "$(WORLD_NAME)" \
-        -password "$(SERVER_PASSWORD)" \
-        -port 2456 \
-        -public 0
-  
-  # Environment variables
-  env:
-    - name: SERVER_NAME
-      value: "My Valheim Server"
-    - name: WORLD_NAME
-      value: "Midgard"
-    - name: SERVER_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: valheim-secrets
-          key: password
-  
-  # Config files to mount
-  configFiles:
-    - path: /serverfiles/admins.txt
-      content: |
-        76561198000000001
-        76561198000000002
-  
-  # Persistent storage
+  # Reference to GameDefinition (required)
+  game: valheim
+
+  # Game-specific configuration (keys defined by GameDefinition.configSchema)
+  # Values can be literals or secret references
+  config:
+    serverName: "Vikings Only"
+    worldName: "Midgard"
+    password:
+      secretKeyRef:
+        name: valheim-secrets
+        key: password
+    public: "0"
+    crossplay: "true"
+    admins:
+      - "76561198000000001"
+      - "76561198000000002"
+
+  # Override default storage (optional)
   storage:
-    size: 20Gi
-    storageClassName: fast-ssd  # optional
-  
-  # Resource requests/limits
+    size: 30Gi
+    storageClassName: fast-ssd
+
+  # Override default resources (optional)
   resources:
     requests:
       cpu: "2"
@@ -137,81 +236,45 @@ spec:
     limits:
       cpu: "4"
       memory: "8Gi"
-  
-  # Service type for game ports
-  serviceType: LoadBalancer  # or NodePort, ClusterIP
+
+  # Service type (optional, default: LoadBalancer)
+  serviceType: LoadBalancer
+
+  # SteamCMD options (optional)
+  beta: ""  # beta branch name, empty = stable
+  validate: true  # run steamcmd validate on startup
+  anonymous: true  # use anonymous login
+  # steamCredentialsSecret: steam-creds  # if anonymous: false
 
 status:
-  state: Running  # Pending, Installing, Running, Error
-  address: 192.168.1.100
+  state: Running  # Pending, Installing, Starting, Running, Error
+  address: "192.168.1.100"
   ports:
     - name: game
       port: 2456
-  lastUpdated: "2026-01-18T05:30:00Z"
-  appBuildId: "12345678"  # Steam build ID, useful for tracking updates
+    - name: query
+      port: 2457
+  lastUpdated: "2026-01-20T10:30:00Z"
+  appBuildId: "12345678"
+  message: "Server running successfully"
 ```
 
-### Option B: Game-Specific CRDs (Layered)
+### Example: Deploying Different Games
 
-For popular games, provide first-class CRDs with sane defaults and typed config.
+All games use the same `SteamServer` kind, just with different `game` references and `config` values.
 
-#### ValheimServer
+#### Satisfactory Server
 
 ```yaml
 apiVersion: boilerr.dev/v1alpha1
-kind: ValheimServer
-metadata:
-  name: valheim-prod
-spec:
-  # Game-specific, typed configuration
-  serverName: "Vikings Only"
-  worldName: "Midgard"
-  password:
-    secretKeyRef:
-      name: valheim-secrets
-      key: password
-  
-  # Valheim-specific options
-  public: false
-  crossplay: true
-  
-  # Admins by Steam ID
-  admins:
-    - "76561198000000001"
-    - "76561198000000002"
-  
-  # Common fields still available
-  storage:
-    size: 20Gi
-  resources:
-    requests:
-      cpu: "2"
-      memory: "4Gi"
-  serviceType: LoadBalancer
-
-status:
-  state: Running
-  address: 192.168.1.100
-  gamePort: 2456
-  version: "0.217.22"
-```
-
-#### SatisfactoryServer
-
-```yaml
-apiVersion: boilerr.dev/v1alpha1
-kind: SatisfactoryServer
+kind: SteamServer
 metadata:
   name: satisfactory-prod
 spec:
-  serverName: "Factory Must Grow"
-  maxPlayers: 8
-  
-  # Satisfactory-specific
-  autoPause: true
-  autoSaveOnDisconnect: true
-  networkQuality: 3  # 0-3
-  
+  game: satisfactory
+  config:
+    maxPlayers: "8"
+    autosaveInterval: "300"
   storage:
     size: 50Gi  # Satisfactory saves get big
   resources:
@@ -220,33 +283,23 @@ spec:
       memory: "12Gi"
 ```
 
-#### PalworldServer
+#### Palworld Server
 
 ```yaml
 apiVersion: boilerr.dev/v1alpha1
-kind: PalworldServer
+kind: SteamServer
 metadata:
   name: palworld-prod
 spec:
-  serverName: "Pal Paradise"
-  adminPassword:
-    secretKeyRef:
-      name: palworld-secrets
-      key: admin-password
-  serverPassword:
-    secretKeyRef:
-      name: palworld-secrets
-      key: server-password
-  
-  # Palworld-specific settings
-  maxPlayers: 32
-  difficulty: Normal  # Casual, Normal, Hard
-  deathPenalty: ItemAndEquipment  # None, Item, ItemAndEquipment, All
-  
-  # Rate multipliers
-  expRate: 1.5
-  captureRate: 1.0
-  
+  game: palworld
+  config:
+    serverName: "Pal Paradise"
+    password:
+      secretKeyRef:
+        name: palworld-secrets
+        key: password
+    maxPlayers: "32"
+    difficulty: "Normal"
   storage:
     size: 30Gi
   resources:
@@ -255,102 +308,24 @@ spec:
       memory: "16Gi"
 ```
 
-#### FactorioServer
+#### 7 Days to Die Server
 
 ```yaml
 apiVersion: boilerr.dev/v1alpha1
-kind: FactorioServer
-metadata:
-  name: factorio-prod
-spec:
-  # App ID: 427520
-  serverName: "The Factory Must Grow"
-  description: "A friendly Factorio server"
-  
-  # Game settings
-  maxPlayers: 16
-  visibility:
-    public: false
-    lan: true
-  
-  # Credentials for public listing (optional)
-  factorioCredentials:
-    secretKeyRef:
-      name: factorio-secrets
-      key: credentials  # username:token format
-  
-  # Gameplay settings
-  autosaveInterval: 10  # minutes
-  autosaveSlots: 5
-  afkKickMinutes: 30
-  
-  # Allow commands (admins-only, true, false)
-  allowCommands: admins-only
-  
-  # Admins by Factorio username
-  admins:
-    - "player1"
-    - "player2"
-  
-  # Mods (optional - list of mod names, fetched from mod portal)
-  # mods:
-  #   - "space-exploration"
-  #   - "Krastorio2"
-  
-  storage:
-    size: 10Gi
-  resources:
-    requests:
-      cpu: "2"
-      memory: "2Gi"
-```
-
-#### SevenDaysServer
-
-```yaml
-apiVersion: boilerr.dev/v1alpha1
-kind: SevenDaysServer
+kind: SteamServer
 metadata:
   name: 7dtd-prod
 spec:
-  # App ID: 294420
-  serverName: "Survival Server"
-  serverPassword:
-    secretKeyRef:
-      name: 7dtd-secrets
-      key: password
-  
-  # Server settings
-  maxPlayers: 8
-  serverPort: 26900
-  
-  # World settings
-  worldGenSeed: "apocalypse"
-  worldGenSize: 6144  # 4096, 6144, or 8192
-  gameWorld: RWG  # or Navezgane
-  gameName: "MyWorld"
-  
-  # Gameplay
-  gameMode: GameModeSurvival
-  difficulty: 3  # 0-5
-  
-  # Day/night cycle
-  dayNightLength: 60  # real minutes per in-game day
-  dayLightLength: 18  # in-game hours of daylight
-  
-  # Zombies
-  zombieMove: 0  # 0=walk, 1=jog, 2=run, 3=sprint, 4=nightmare
-  zombieMoveNight: 3
-  bloodMoonFrequency: 7
-  bloodMoonEnemyCount: 8
-  
-  # Admin
-  adminPassword:
-    secretKeyRef:
-      name: 7dtd-secrets
-      key: admin-password
-  telnetEnabled: false
-  
+  game: 7daystodie
+  config:
+    serverName: "Survival Server"
+    password:
+      secretKeyRef:
+        name: 7dtd-secrets
+        key: password
+    worldGenSeed: "apocalypse"
+    worldGenSize: "6144"
+    difficulty: "3"
   storage:
     size: 30Gi
   resources:
@@ -359,156 +334,64 @@ spec:
       memory: "8Gi"
 ```
 
-#### VRisingServer
+### Bundled GameDefinitions Reference
+
+These GameDefinitions ship with the Helm chart. Users can deploy servers for these games immediately.
+
+| Game | GameDefinition Name | App ID | Default Ports | Min Resources |
+|------|---------------------|--------|---------------|---------------|
+| Valheim | `valheim` | 896660 | 2456-2458/UDP | 2 CPU, 4Gi |
+| Satisfactory | `satisfactory` | 1690800 | 7777/UDP+TCP, 15000/UDP, 15777/UDP | 4 CPU, 12Gi |
+| Palworld | `palworld` | 2394010 | 8211/UDP | 4 CPU, 16Gi |
+| 7 Days to Die | `7daystodie` | 294420 | 26900/TCP+UDP, 26901-26902/UDP | 4 CPU, 8Gi |
+| V Rising | `vrising` | 1829350 | 9876-9877/UDP | 2 CPU, 6Gi |
+| Enshrouded | `enshrouded` | 2278520 | 15636-15637/UDP | 2 CPU, 8Gi |
+| Project Zomboid | `projectzomboid` | 380870 | 16261/UDP, 16262-16272/TCP | 4 CPU, 8Gi |
+| Terraria | `terraria` | 105600 | 7777/TCP | 1 CPU, 1Gi |
+
+### Adding Custom Games
+
+Users can create their own GameDefinition for games not bundled with the operator:
 
 ```yaml
 apiVersion: boilerr.dev/v1alpha1
-kind: VRisingServer
+kind: GameDefinition
 metadata:
-  name: vrising-prod
+  name: my-custom-game
 spec:
-  # App ID: 1829350
-  serverName: "Vampire Domain"
-  serverDescription: "PvE Chill Server"
-  password:
-    secretKeyRef:
-      name: vrising-secrets
-      key: password
-  
-  # Server settings
-  maxPlayers: 40
-  gamePort: 9876
-  queryPort: 9877
-  
-  # Game mode
-  gameMode: PvE  # PvE, PvP, FullLoot
-  difficultyPreset: Normal  # Easy, Normal, Hard, Brutal
-  
-  # Clan settings
-  clanSize: 4
-  
-  # Game rules (selected settings, full list is extensive)
-  sunDamageModifier: 1.0
-  castleDamageMode: Never  # Never, Always, TimeRestricted
-  
-  # Auto-save
-  autoSaveCount: 25
-  autoSaveInterval: 120  # seconds
-  
-  # RCON (optional)
-  rcon:
-    enabled: true
-    password:
-      secretKeyRef:
-        name: vrising-secrets
-        key: rcon-password
-    port: 25575
-  
-  storage:
-    size: 20Gi
-  resources:
+  appId: 123456
+  installDir: /data/server
+  command: /data/server/start.sh
+  args:
+    - "-port"
+    - "27015"
+  ports:
+    - name: game
+      port: 27015
+      protocol: UDP
+  configSchema:
+    serverName:
+      description: "Server name"
+      default: "My Server"
+  defaultResources:
     requests:
       cpu: "2"
-      memory: "6Gi"
+      memory: "4Gi"
+  defaultStorage: 20Gi
 ```
 
-#### EnshroudedServer
+Then deploy with:
 
 ```yaml
 apiVersion: boilerr.dev/v1alpha1
-kind: EnshroudedServer
+kind: SteamServer
 metadata:
-  name: enshrouded-prod
+  name: my-server
 spec:
-  # App ID: 2278520
-  serverName: "Embervale Explorers"
-  password:
-    secretKeyRef:
-      name: enshrouded-secrets
-      key: password
-  
-  # Server settings
-  maxPlayers: 16
-  gamePort: 15636
-  queryPort: 15637
-  
-  # Performance
-  saveDirectory: "./savegame"
-  logDirectory: "./logs"
-  
-  storage:
-    size: 15Gi
-  resources:
-    requests:
-      cpu: "2"
-      memory: "8Gi"  # Enshrouded is memory-hungry
+  game: my-custom-game
+  config:
+    serverName: "Custom Server"
 ```
-
-#### TerrariaServer
-
-```yaml
-apiVersion: boilerr.dev/v1alpha1
-kind: TerrariaServer
-metadata:
-  name: terraria-prod
-spec:
-  # App ID: 105600 (vanilla) - or use tShock
-  variant: tshock  # vanilla or tshock
-  
-  serverName: "Terraria World"
-  password:
-    secretKeyRef:
-      name: terraria-secrets
-      key: password
-  
-  # World settings
-  worldName: "MyWorld"
-  worldSize: medium  # small, medium, large
-  difficulty: normal  # classic, expert, master, journey
-  
-  # Server settings
-  maxPlayers: 8
-  port: 7777
-  
-  # World gen (for new worlds)
-  seed: ""  # empty = random
-  worldEvil: random  # corruption, crimson, random
-  
-  # Gameplay
-  spawnProtection: true
-  announcePlayerJoinLeave: true
-  
-  # tShock-specific (only if variant: tshock)
-  tshock:
-    restApiEnabled: true
-    restApiPort: 7878
-    
-  storage:
-    size: 5Gi
-  resources:
-    requests:
-      cpu: "1"
-      memory: "1Gi"
-```
-
-### Game CRD Reference Table
-
-| Game | CRD Kind | App ID | Default Ports | Min Resources |
-|------|----------|--------|---------------|---------------|
-| Valheim | `ValheimServer` | 896660 | 2456-2457/UDP | 2 CPU, 4Gi |
-| Satisfactory | `SatisfactoryServer` | 1690800 | 7777/UDP, 15000/UDP | 4 CPU, 12Gi |
-| Palworld | `PalworldServer` | 2394010 | 8211/UDP | 4 CPU, 16Gi |
-| Factorio | `FactorioServer` | 427520 | 34197/UDP | 2 CPU, 2Gi |
-| 7 Days to Die | `SevenDaysServer` | 294420 | 26900-26902/TCP+UDP | 4 CPU, 8Gi |
-| V Rising | `VRisingServer` | 1829350 | 9876-9877/UDP | 2 CPU, 6Gi |
-| Enshrouded | `EnshroudedServer` | 2278520 | 15636-15637/UDP | 2 CPU, 8Gi |
-| Terraria | `TerrariaServer` | 105600 | 7777/TCP | 1 CPU, 1Gi |
-
-### Planned / Upcoming Games
-
-| Game | Status | Notes |
-|------|--------|-------|
-| RuneScape: Dragonwilds | ⏳ Waiting | Jagex survival crafting game. Dedicated servers on their 2026 roadmap. Add CRD once server binaries are available. |
 
 ---
 
@@ -520,39 +403,40 @@ spec:
 boilerr/
 ├── api/
 │   └── v1alpha1/
-│       ├── steamserver_types.go      # Generic CRD
-│       ├── valheimserver_types.go    # Game-specific (optional)
+│       ├── gamedefinition_types.go   # GameDefinition CRD
+│       ├── steamserver_types.go      # SteamServer CRD
+│       ├── common_types.go           # Shared types (ports, resources, etc.)
 │       └── groupversion_info.go
-├── controllers/
-│   ├── steamserver_controller.go
-│   └── valheimserver_controller.go
 ├── internal/
+│   ├── controller/
+│   │   ├── gamedefinition_controller.go  # Validates GameDefinitions
+│   │   └── steamserver_controller.go     # Main reconciliation logic
 │   ├── resources/
 │   │   ├── statefulset.go            # StatefulSet builder
 │   │   ├── service.go                # Service builder
-│   │   └── pvc.go                    # PVC builder
+│   │   ├── pvc.go                    # PVC builder
+│   │   └── configmap.go              # ConfigMap builder for game configs
 │   └── steamcmd/
-│       └── scripts.go                # SteamCMD init scripts
+│       └── command.go                # SteamCMD args builder
 ├── config/
 │   ├── crd/                          # Generated CRD YAML
 │   ├── rbac/                         # RBAC manifests
 │   └── manager/                      # Operator deployment
-├── web/                              # Web UI
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── GameForm.tsx          # Dynamic form from CRD schema
-│   │   │   ├── YamlPreview.tsx       # Live YAML preview
-│   │   │   └── ServerList.tsx        # Dashboard of existing servers
-│   │   ├── lib/
-│   │   │   ├── k8s.ts                # K8s API client
-│   │   │   ├── github.ts             # GitHub PR integration
-│   │   │   └── schema.ts             # CRD schema → form mapping
-│   │   └── pages/
-│   │       ├── index.tsx             # Dashboard
-│   │       ├── new.tsx               # Create server form
-│   │       └── edit/[name].tsx       # Edit existing server
-│   ├── package.json
-│   └── Dockerfile
+├── charts/
+│   └── boilerr/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       ├── templates/
+│       │   ├── deployment.yaml       # Operator deployment
+│       │   ├── crds/                 # CRD manifests
+│       │   └── gamedefinitions/      # Bundled GameDefinitions
+│       │       ├── valheim.yaml
+│       │       ├── satisfactory.yaml
+│       │       ├── palworld.yaml
+│       │       └── ...
+│       └── README.md
+├── web/                              # Web UI (future)
+│   └── ...
 ├── Dockerfile
 ├── Makefile
 └── go.mod
@@ -560,29 +444,74 @@ boilerr/
 
 ### Key Decisions
 
-1. **StatefulSet vs Deployment**: StatefulSet for stable network identity and ordered pod management. Game servers are inherently stateful.
+1. **Two-CRD Architecture**: GameDefinition + SteamServer separation enables extensibility without code changes. Users add games via YAML, not Go code.
 
-2. **Init Container for SteamCMD**: Runs steamcmd to download/validate game files before starting the game server. Allows separation of concerns.
+2. **StatefulSet vs Deployment**: StatefulSet for stable network identity and ordered pod management. Game servers are inherently stateful.
 
-3. **Persistent Volume Strategy**: Single PVC mounted at a consistent path. Game files and saves co-located (simplest approach for v1).
+3. **No Custom Images**: Uses `steamcmd/steamcmd:ubuntu-22` directly for both init and main containers. Game-specific behavior configured via command/args/env at runtime.
 
-4. **Update Strategy**: For v1, require manual restart (delete pod). v2 could add smarter strategies.
+4. **Init Container for SteamCMD**: Runs steamcmd to download/validate game files before starting the game server. Same image, different entrypoint.
 
-5. **Service Type**: Default to LoadBalancer for cloud, but support NodePort for bare-metal.
+5. **Persistent Volume Strategy**: Single PVC mounted at `/data`. Game files and saves co-located (simplest approach for v1).
 
-### SteamCMD Init Script (Generated)
+6. **Update Strategy**: For v1, require manual restart (delete pod). v2 could add smarter strategies.
 
-```bash
-#!/bin/bash
-set -e
+7. **Service Type**: Default to LoadBalancer for cloud, but support NodePort for bare-metal.
 
-steamcmd \
-  +force_install_dir /serverfiles \
-  +login anonymous \
-  +app_update ${APP_ID} ${VALIDATE_FLAG} \
-  +quit
+### SteamCMD Init Container
 
-echo "SteamCMD complete, starting server..."
+No scripts generated. The operator builds args directly from GameDefinition + SteamServer specs:
+
+```yaml
+# Generated StatefulSet init container
+initContainers:
+- name: steamcmd
+  image: steamcmd/steamcmd:ubuntu-22
+  args:
+  - "+login"
+  - "anonymous"
+  - "+force_install_dir"
+  - "/data/server"
+  - "+app_update"
+  - "896660"        # from GameDefinition.spec.appId
+  - "validate"      # if SteamServer.spec.validate: true
+  - "+quit"
+  volumeMounts:
+  - name: game-data
+    mountPath: /data
+```
+
+### Main Container
+
+Command and args derived from GameDefinition, with config values interpolated:
+
+```yaml
+# Generated StatefulSet main container
+containers:
+- name: game-server
+  image: steamcmd/steamcmd:ubuntu-22
+  command:
+  - "/data/server/valheim_server.x86_64"  # from GameDefinition.spec.command
+  args:
+  - "-name"
+  - "Vikings Only"      # from SteamServer.spec.config.serverName
+  - "-world"
+  - "Midgard"           # from SteamServer.spec.config.worldName
+  - "-password"
+  - "$(SERVER_PASSWORD)"
+  - "-port"
+  - "2456"
+  env:
+  - name: SERVER_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: valheim-secrets
+        key: password
+  - name: SteamAppId
+    value: "892970"     # from GameDefinition.spec.env
+  volumeMounts:
+  - name: game-data
+    mountPath: /data
 ```
 
 ---
@@ -795,7 +724,6 @@ Files Changed:
 - [ ] Player-aware update strategy (wait for empty server)
 - [ ] Multi-instance clustering (ARK clusters, etc.)
 - [ ] Steam Workshop mod management
-- [ ] Helm chart for easy operator installation
 
 ### Web UI Enhancements
 - [ ] Real-time server logs streaming
@@ -807,14 +735,19 @@ Files Changed:
 
 ---
 
+## Resolved Decisions
+
+1. **Naming**: `SteamServer` for user-facing CR, `GameDefinition` for game configs ✓
+2. **Group/Domain**: `boilerr.dev` ✓
+3. **Image Strategy**: Use `steamcmd/steamcmd:ubuntu-22` directly, no custom images ✓
+4. **Game Profiles**: `GameDefinition` CRD - bundled via Helm, users can add custom ✓
+5. **GameDefinition Scope**: Cluster-scoped - available to all namespaces ✓
+
 ## Open Questions
 
-1. **Naming**: `SteamServer`? `GameServer`? `DedicatedServer`?
-2. **Group/Domain**: `boilerr.dev`? `gameserver.io`?
-3. **Image Strategy**: Operator-provided base image or user brings their own?
-4. **Game Profiles**: Ship a library of known-good configs for popular games?
-5. **Web UI Deployment**: Bundled with operator? Separate deployment? Static site?
-6. **Web UI Auth**: Rely on K8s RBAC? Separate user management? OAuth?
+1. **Web UI Deployment**: Bundled with operator? Separate deployment? Static site?
+2. **Web UI Auth**: Rely on K8s RBAC? Separate user management? OAuth?
+3. **Config Templating**: Go templates for GameDefinition args? Or simpler interpolation?
 
 ---
 
@@ -823,4 +756,5 @@ Files Changed:
 - [Kubebuilder Book](https://book.kubebuilder.io/)
 - [Operator SDK](https://sdk.operatorframework.io/)
 - [SteamCMD Documentation](https://developer.valvesoftware.com/wiki/SteamCMD)
+- [steamcmd/steamcmd Docker](https://github.com/steamcmd/docker) - Base container image used for game servers
 - [minecraft-operator](https://github.com/itzg/minecraft-operator) - Similar concept, good reference
