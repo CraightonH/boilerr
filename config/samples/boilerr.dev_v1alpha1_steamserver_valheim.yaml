@@ -4,18 +4,16 @@ metadata:
   name: valheim-prod
   namespace: game-servers
 spec:
-  game: valheim
+  gameDefinition: valheim
   config:
-    serverName:
-      value: "Vikings Only"
-    worldName:
-      value: "Midgard"
+    serverName: "Vikings Only"
+    worldName: "Midgard"
     password:
       secretKeyRef:
         name: valheim-secrets
         key: password
-    public:
-      value: "0"
+    public: "0"
   storage:
     size: 30Gi
-  serviceType: LoadBalancer
+    storageClassName: nfs-client  # Replace with your cluster's storage class
+  serviceType: NodePort

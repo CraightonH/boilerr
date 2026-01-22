@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -71,27 +73,18 @@ type PortStatus struct {
 
 // ConfigValue represents a config value that can be a literal or secret reference.
 //
-// DESIGN NOTE: DESIGN.md shows a cleaner UX where literals are direct strings:
+// Supports clean syntax via custom unmarshaling:
 //
 //	config:
 //	  serverName: "Vikings Only"       # direct string
 //	  password:                         # object with secretKeyRef
 //	    secretKeyRef: {...}
 //
-// This requires custom unmarshaling (UnmarshalJSON) to detect whether the YAML
-// value is a string or an object. For MVP, we use the simpler structured approach
-// below, then improve UX later with custom unmarshaling.
-//
-// MVP approach (structured):
-//
-//	config:
-//	  serverName:
-//	    value: "Vikings Only"
-//	  password:
-//	    secretKeyRef: {...}
-//
-// The implementation below supports both - if only `value` is set, it's a literal.
-// If `secretKeyRef` is set, the value comes from a Secret.
+// The implementation supports both direct strings and structured objects.
+// If only `value` is set, it's a literal. If `secretKeyRef` is set, the value
+// comes from a Secret.
+// +kubebuilder:validation:Type=""
+// +kubebuilder:pruning:PreserveUnknownFields
 type ConfigValue struct {
 	// Value is a literal string value.
 	// +optional
@@ -100,4 +93,27 @@ type ConfigValue struct {
 	// SecretKeyRef references a key in a Secret.
 	// +optional
 	SecretKeyRef *corev1.SecretKeySelector `json:"secretKeyRef,omitempty"`
+}
+
+// UnmarshalJSON implements custom unmarshaling to support both direct strings
+// and structured objects.
+func (cv *ConfigValue) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as a simple string first
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		cv.Value = str
+		cv.SecretKeyRef = nil
+		return nil
+	}
+
+	// Fall back to unmarshaling as the full struct
+	type configValueAlias ConfigValue
+	var alias configValueAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+
+	cv.Value = alias.Value
+	cv.SecretKeyRef = alias.SecretKeyRef
+	return nil
 }

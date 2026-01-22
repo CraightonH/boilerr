@@ -240,8 +240,8 @@ spec:
       memory: "10Gi"
       cpu: "5000m"
 
-  # OPTIONAL: Service type (default: LoadBalancer)
-  serviceType: LoadBalancer
+  # OPTIONAL: Service type (default: NodePort)
+  serviceType: NodePort
 
   # OPTIONAL: SteamCMD options
   validate: true

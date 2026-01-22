@@ -7,12 +7,14 @@ import (
 
 // SteamServerSpec defines the desired state of a Steam dedicated game server.
 type SteamServerSpec struct {
-	// Game references a GameDefinition by name.
+	// GameDefinition references a GameDefinition by name.
 	// +kubebuilder:validation:Required
-	Game string `json:"game"`
+	GameDefinition string `json:"gameDefinition"`
 
 	// Config provides values for GameDefinition.configSchema keys.
 	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:XPreserveUnknownFields
 	Config map[string]ConfigValue `json:"config,omitempty"`
 
 	// --- Override fields (optional, for power users or fallback) ---
@@ -138,7 +140,7 @@ const (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=ss
-// +kubebuilder:printcolumn:name="Game",type="string",JSONPath=".spec.game",description="Game definition"
+// +kubebuilder:printcolumn:name="Game",type="string",JSONPath=".spec.gameDefinition",description="Game definition"
 // +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="Server state"
 // +kubebuilder:printcolumn:name="Address",type="string",JSONPath=".status.address",description="External address"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"

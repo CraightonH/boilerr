@@ -27,80 +27,80 @@ Establish the project structure, tooling, and basic operator scaffolding.
 ### 2.1 CRD Definitions
 
 #### GameDefinition CRD
-- [ ] Define `GameDefinition` API types (`api/v1alpha1/gamedefinition_types.go`)
-- [ ] Implement spec fields:
-  - [ ] `appId` - Steam application ID
-  - [ ] `image` - Container image (default: `steamcmd/steamcmd:ubuntu-22`)
-  - [ ] `command` - Game server startup command
-  - [ ] `args` - Default startup arguments
-  - [ ] `installDir` - SteamCMD install directory path
-  - [ ] `ports` - Default ports with protocol (TCP/UDP)
-  - [ ] `env` - Default environment variables
-  - [ ] `configFiles` - Config file templates (path + content template)
-  - [ ] `healthCheck` - Health check configuration
-- [ ] Implement config mapping for user-facing settings:
-  - [ ] `configSchema` - Map of user config keys to arg/env/file mappings
-- [ ] Generate CRD manifests with `make manifests`
+- [x] Define `GameDefinition` API types (`api/v1alpha1/gamedefinition_types.go`)
+- [x] Implement spec fields:
+  - [x] `appId` - Steam application ID
+  - [x] `image` - Container image (default: `steamcmd/steamcmd:ubuntu-22`)
+  - [x] `command` - Game server startup command
+  - [x] `args` - Default startup arguments
+  - [x] `installDir` - SteamCMD install directory path
+  - [x] `ports` - Default ports with protocol (TCP/UDP)
+  - [x] `env` - Default environment variables
+  - [x] `configFiles` - Config file templates (path + content template)
+  - [x] `healthCheck` - Health check configuration
+- [x] Implement config mapping for user-facing settings:
+  - [x] `configSchema` - Map of user config keys to arg/env/file mappings
+- [x] Generate CRD manifests with `make manifests`
 
 #### SteamServer CRD
-- [ ] Define `SteamServer` API types (`api/v1alpha1/steamserver_types.go`)
-- [ ] Implement spec fields:
-  - [ ] `game` - Reference to GameDefinition by name
-  - [ ] `config` - User-provided game configuration (map[string]string)
-  - [ ] `storage` - PVC size and storage class
-  - [ ] `resources` - CPU/memory requests and limits
-  - [ ] `serviceType` - LoadBalancer, NodePort, ClusterIP
-- [ ] Add optional fields: `beta`, `validate`, `anonymous`, `steamCredentialsSecret`
-- [ ] Define status fields: `state`, `address`, `ports`, `lastUpdated`, `appBuildId`, `message`
-- [ ] Add OpenAPI validation schema with proper defaults
+- [x] Define `SteamServer` API types (`api/v1alpha1/steamserver_types.go`)
+- [x] Implement spec fields:
+  - [x] `game` - Reference to GameDefinition by name
+  - [x] `config` - User-provided game configuration (map[string]string)
+  - [x] `storage` - PVC size and storage class
+  - [x] `resources` - CPU/memory requests and limits
+  - [x] `serviceType` - LoadBalancer, NodePort, ClusterIP
+- [x] Add optional fields: `beta`, `validate`, `anonymous`, `steamCredentialsSecret`
+- [x] Define status fields: `state`, `address`, `ports`, `lastUpdated`, `appBuildId`, `message`
+- [x] Add OpenAPI validation schema with proper defaults
 
 ### 2.2 Resource Builders
-- [ ] Create StatefulSet builder (`internal/resources/statefulset.go`)
-  - [ ] Init container using `steamcmd/steamcmd` image
-  - [ ] Build SteamCMD args from GameDefinition (login, force_install_dir, app_update, quit)
-  - [ ] Main container command/args from GameDefinition + SteamServer config
-  - [ ] Volume mounts for persistent storage
-  - [ ] Environment variable injection from GameDefinition + SteamServer
-  - [ ] Config file generation from templates
-- [ ] Create Service builder (`internal/resources/service.go`)
-  - [ ] Support LoadBalancer, NodePort, ClusterIP
-  - [ ] Handle multiple ports (game, query, RCON)
-  - [ ] Proper protocol handling (TCP/UDP)
-- [ ] Create PVC builder (`internal/resources/pvc.go`)
-  - [ ] Configurable size and storage class
-  - [ ] Proper access modes
+- [x] Create StatefulSet builder (`internal/resources/statefulset.go`)
+  - [x] Init container using `steamcmd/steamcmd` image
+  - [x] Build SteamCMD args from GameDefinition (login, force_install_dir, app_update, quit)
+  - [x] Main container command/args from GameDefinition + SteamServer config
+  - [x] Volume mounts for persistent storage
+  - [x] Environment variable injection from GameDefinition + SteamServer
+  - [x] Config file generation from templates
+- [x] Create Service builder (`internal/resources/service.go`)
+  - [x] Support LoadBalancer, NodePort, ClusterIP
+  - [x] Handle multiple ports (game, query, RCON)
+  - [x] Proper protocol handling (TCP/UDP)
+- [x] Create PVC builder (`internal/resources/pvc.go`)
+  - [x] Configurable size and storage class
+  - [x] Proper access modes
 
 ### 2.3 Controller Implementation
-- [ ] Scaffold controllers with Kubebuilder
-- [ ] Implement GameDefinition controller
-  - [ ] Watch `GameDefinition` resources
-  - [ ] Validate GameDefinition spec
-  - [ ] Update status (ready/error)
-- [ ] Implement SteamServer controller
-  - [ ] Watch `SteamServer` resources
-  - [ ] Fetch referenced GameDefinition
-  - [ ] Validate SteamServer config against GameDefinition schema
-  - [ ] Generate desired state (PVC, StatefulSet, Service)
-  - [ ] Compare with actual cluster state
-  - [ ] Apply diffs with proper ownership references
-- [ ] Implement status updates
-  - [ ] Track server state transitions
-  - [ ] Update external address from Service
-  - [ ] Error handling and message propagation
-- [ ] Add finalizers for cleanup on deletion
+- [x] Scaffold controllers with Kubebuilder
+- [x] Implement GameDefinition controller
+  - [x] Watch `GameDefinition` resources
+  - [x] Validate GameDefinition spec
+  - [x] Update status (ready/error)
+- [x] Implement SteamServer controller
+  - [x] Watch `SteamServer` resources
+  - [x] Fetch referenced GameDefinition
+  - [x] Validate SteamServer config against GameDefinition schema
+  - [x] Generate desired state (PVC, StatefulSet, Service)
+  - [x] Compare with actual cluster state
+  - [x] Apply diffs with proper ownership references
+- [x] Implement status updates
+  - [x] Track server state transitions
+  - [x] Update external address from Service
+  - [x] Error handling and message propagation
+- [x] Add finalizers for cleanup on deletion
 
 ### 2.4 SteamCMD Command Builder
-- [ ] Create command builder (`internal/steamcmd/command.go`)
-- [ ] Build args slice from GameDefinition + SteamServer spec
-- [ ] Handle anonymous vs authenticated login
-- [ ] Implement beta branch selection (`+app_update <id> -beta <branch>`)
-- [ ] Add validation flag support
-- [ ] Document Steam Guard limitations
+- [x] Create command builder (`internal/steamcmd/command.go`)
+- [x] Build args slice from GameDefinition + SteamServer spec
+- [x] Handle anonymous vs authenticated login
+- [x] Implement beta branch selection (`+app_update <id> -beta <branch>`)
+- [x] Add validation flag support
+- [x] Document Steam Guard limitations
 
 ### 2.5 Testing - Core CRDs
-- [ ] Unit tests for resource builders
-- [ ] Unit tests for controller reconciliation logic
-- [ ] Unit tests for SteamCMD command builder
-- [ ] Integration tests with envtest
-- [ ] E2E tests with kind cluster
-- [ ] Test with sample GameDefinition + SteamServer
+- [x] Unit tests for resource builders
+- [x] Unit tests for controller reconciliation logic
+- [x] Unit tests for SteamCMD command builder
+- [x] Integration tests with envtest
+- [x] E2E tests with kind cluster
+- [x] Test with sample GameDefinition + SteamServer

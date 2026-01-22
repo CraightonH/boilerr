@@ -32,8 +32,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: testNamespace,
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -66,8 +66,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "games",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(896660),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(896660),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456},
 					},
@@ -97,9 +97,9 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: testNamespace,
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
-					Image: "custom/steamcmd:v1.0",
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
+					Image:          "custom/steamcmd:v1.0",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -128,8 +128,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -154,8 +154,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 						{Name: "query", ContainerPort: 27016, Protocol: corev1.ProtocolTCP},
@@ -187,10 +187,10 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:    "valheim",
-					AppId:   int32Ptr(123456),
-					Command: []string{"/bin/bash", "-c"},
-					Args:    []string{"./start_server.sh", "-name", "MyServer"},
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
+					Command:        []string{"/bin/bash", "-c"},
+					Args:           []string{"./start_server.sh", "-name", "MyServer"},
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -218,8 +218,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Env: []corev1.EnvVar{
 						{Name: "SERVER_NAME", Value: "MyServer"},
 						{Name: "MAX_PLAYERS", Value: "16"},
@@ -251,8 +251,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -292,8 +292,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -340,8 +340,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -369,8 +369,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -396,8 +396,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -428,8 +428,8 @@ func TestStatefulSetBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -471,8 +471,8 @@ func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -501,9 +501,9 @@ func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:      "valheim",
-					AppId:     int32Ptr(123456),
-					Anonymous: boolPtr(true),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
+					Anonymous:      boolPtr(true),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -525,7 +525,7 @@ func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:                   "valheim",
+					GameDefinition:         "valheim",
 					AppId:                  int32Ptr(123456),
 					Anonymous:              boolPtr(false),
 					SteamCredentialsSecret: "steam-creds",
@@ -553,8 +553,8 @@ func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -575,9 +575,9 @@ func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:     "valheim",
-					AppId:    int32Ptr(123456),
-					Validate: boolPtr(false),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
+					Validate:       boolPtr(false),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -598,9 +598,9 @@ func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
-					Beta:  "experimental",
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
+					Beta:           "experimental",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -622,8 +622,8 @@ func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -644,8 +644,8 @@ func TestStatefulSetBuilder_SteamCMDArgs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -696,8 +696,8 @@ func TestStatefulSetBuilder_InitEnvVars(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(123456),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -717,7 +717,7 @@ func TestStatefulSetBuilder_InitEnvVars(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:                   "valheim",
+					GameDefinition:         "valheim",
 					AppId:                  int32Ptr(123456),
 					Anonymous:              boolPtr(false),
 					SteamCredentialsSecret: "steam-creds",

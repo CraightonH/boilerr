@@ -95,7 +95,7 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game: gameDef.Name,
+					GameDefinition: gameDef.Name,
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456, Protocol: corev1.ProtocolUDP},
 						{Name: "query", ContainerPort: 2457, Protocol: corev1.ProtocolUDP},
@@ -185,7 +185,7 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game: "test-game-config",
+					GameDefinition: "test-game-config",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -233,7 +233,7 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game: "test-game-noconfig",
+					GameDefinition: "test-game-noconfig",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -278,8 +278,8 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:        "test-game-nodeport",
-					ServiceType: corev1.ServiceTypeNodePort,
+					GameDefinition: "test-game-nodeport",
+					ServiceType:    corev1.ServiceTypeNodePort,
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -318,7 +318,7 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game: "test-game-deletion",
+					GameDefinition: "test-game-deletion",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -370,7 +370,7 @@ var _ = Describe("SteamServer Controller", func() {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game: "test-game-update",
+					GameDefinition: "test-game-update",
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},

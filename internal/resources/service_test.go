@@ -25,8 +25,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "test-game",
-					AppId: int32Ptr(123456),
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -52,8 +52,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "games",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(896660),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(896660),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456},
 					},
@@ -82,8 +82,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "test-game",
-					AppId: int32Ptr(123456),
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -106,9 +106,9 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:        "test-game",
-					AppId:       int32Ptr(123456),
-					ServiceType: corev1.ServiceTypeNodePort,
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
+					ServiceType:    corev1.ServiceTypeNodePort,
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -131,9 +131,9 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:        "test-game",
-					AppId:       int32Ptr(123456),
-					ServiceType: corev1.ServiceTypeClusterIP,
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
+					ServiceType:    corev1.ServiceTypeClusterIP,
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -156,8 +156,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "test-game",
-					AppId: int32Ptr(123456),
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -180,8 +180,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "test-game",
-					AppId: int32Ptr(123456),
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 					},
@@ -217,8 +217,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "test-game",
-					AppId: int32Ptr(123456),
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015},
 						{Name: "query", ContainerPort: 27016, Protocol: corev1.ProtocolTCP},
@@ -252,8 +252,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "test-game",
-					AppId: int32Ptr(123456),
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015, ServicePort: 7777},
 					},
@@ -283,8 +283,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "test-game",
-					AppId: int32Ptr(123456),
+					GameDefinition: "test-game",
+					AppId:          int32Ptr(123456),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 27015, ServicePort: 0},
 					},
@@ -308,8 +308,8 @@ func TestServiceBuilder_Build(t *testing.T) {
 					Namespace: "games",
 				},
 				Spec: boilerrv1alpha1.SteamServerSpec{
-					Game:  "valheim",
-					AppId: int32Ptr(896660),
+					GameDefinition: "valheim",
+					AppId:          int32Ptr(896660),
 					Ports: []boilerrv1alpha1.ServerPort{
 						{Name: "game", ContainerPort: 2456},
 						{Name: "query", ContainerPort: 2457},

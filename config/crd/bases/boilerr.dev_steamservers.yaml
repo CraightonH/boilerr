@@ -18,7 +18,7 @@ spec:
   versions:
   - additionalPrinterColumns:
     - description: Game definition
-      jsonPath: .spec.game
+      jsonPath: .spec.gameDefinition
       name: Game
       type: string
     - description: Server state
@@ -82,18 +82,13 @@ spec:
               config:
                 additionalProperties:
                   description: "ConfigValue represents a config value that can be
-                    a literal or secret reference.\n\nDESIGN NOTE: DESIGN.md shows
-                    a cleaner UX where literals are direct strings:\n\n\tconfig:\n\t
-                    \ serverName: \"Vikings Only\"       # direct string\n\t  password:
-                    \                        # object with secretKeyRef\n\t    secretKeyRef:
-                    {...}\n\nThis requires custom unmarshaling (UnmarshalJSON) to
-                    detect whether the YAML\nvalue is a string or an object. For MVP,
-                    we use the simpler structured approach\nbelow, then improve UX
-                    later with custom unmarshaling.\n\nMVP approach (structured):\n\n\tconfig:\n\t
-                    \ serverName:\n\t    value: \"Vikings Only\"\n\t  password:\n\t
-                    \   secretKeyRef: {...}\n\nThe implementation below supports both
-                    - if only `value` is set, it's a literal.\nIf `secretKeyRef` is
-                    set, the value comes from a Secret."
+                    a literal or secret reference.\n\nSupports clean syntax via custom
+                    unmarshaling:\n\n\tconfig:\n\t  serverName: \"Vikings Only\"       #
+                    direct string\n\t  password:                         # object
+                    with secretKeyRef\n\t    secretKeyRef: {...}\n\nThe implementation
+                    supports both direct strings and structured objects.\nIf only
+                    `value` is set, it's a literal. If `secretKeyRef` is set, the
+                    value\ncomes from a Secret."
                   properties:
                     secretKeyRef:
                       description: SecretKeyRef references a key in a Secret.
@@ -122,10 +117,11 @@ spec:
                     value:
                       description: Value is a literal string value.
                       type: string
-                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
                 description: Config provides values for GameDefinition.configSchema
                   keys.
                 type: object
+                x-kubernetes-preserve-unknown-fields: true
               configFiles:
                 description: ConfigFiles adds to GameDefinition.configFiles.
                 items:
@@ -302,8 +298,8 @@ spec:
                   - name
                   type: object
                 type: array
-              game:
-                description: Game references a GameDefinition by name.
+              gameDefinition:
+                description: GameDefinition references a GameDefinition by name.
                 type: string
               image:
                 description: Image overrides GameDefinition.image.
@@ -436,7 +432,7 @@ spec:
                 description: Validate game files on startup.
                 type: boolean
             required:
-            - game
+            - gameDefinition
             type: object
           status:
             description: SteamServerStatus defines the observed state of a Steam dedicated

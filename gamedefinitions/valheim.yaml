@@ -1,9 +1,8 @@
 ---
 # Valheim Dedicated Server GameDefinition
-# https://valheim.fandom.com/wiki/Valheim_Dedicated_Server
 # Valheim is a brutal exploration and survival game for 1-10 players set in a procedurally-generated purgatory inspired by viking culture.
 
-apiVersion: boilerr.io/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: GameDefinition
 metadata:
   name: valheim
@@ -46,6 +45,9 @@ spec:
       protocol: UDP
     - name: query
       containerPort: 2457
+      protocol: UDP
+    - name: reserved
+      containerPort: 2458
       protocol: UDP
 
   # Environment variables required by Valheim
@@ -179,20 +181,18 @@ spec:
 ---
 # Example SteamServer for Valheim
 # Users create this to deploy their server instance
-apiVersion: boilerr.io/v1alpha1
+apiVersion: boilerr.dev/v1alpha1
 kind: SteamServer
 metadata:
   name: my-valheim-server
-  namespace: default
+  namespace: games
 spec:
-  game: valheim
+  gameDefinition: valheim
 
   config:
-    serverName:
-      value: "Vikings Valhalla"
+    serverName: "Vikings Valhalla"
 
-    worldName:
-      value: "Midgard"
+    worldName: "Midgard"
 
     password:
       # Reference a Secret for the password
@@ -200,13 +200,12 @@ spec:
         name: valheim-secrets
         key: server-password
 
-    public:
-      value: "0"
+    public: "0"
 
-    crossplay:
-      value: "false"
+    crossplay: "false"
 
   storage:
     size: 30Gi
+    storageClassName: nfs-client  # Replace with your cluster's storage class
 
   serviceType: LoadBalancer
