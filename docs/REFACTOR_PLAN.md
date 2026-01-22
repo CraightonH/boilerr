@@ -104,8 +104,8 @@ Args: b.buildSteamCMDArgs()
 **4. No GameDefinition reference:**
 ```go
 // Missing from SteamServer:
-Game   string                 `json:"game"`
-Config map[string]ConfigValue `json:"config,omitempty"`
+GameDefinition string                 `json:"gameDefinition"`
+Config         map[string]ConfigValue `json:"config,omitempty"`
 ```
 
 ---
@@ -379,16 +379,16 @@ type ConfigValue struct {
 **File:** `api/v1alpha1/steamserver_types.go`
 
 Changes:
-1. Add `Game` field (required)
+1. Add `GameDefinition` field (required)
 2. Add `Config` field
 3. Make `AppId`, `Ports`, `Command`, `Args` optional (fallback mode)
 4. Import types from common_types.go
 
 ```go
 type SteamServerSpec struct {
-    // Game references a GameDefinition by name.
+    // GameDefinition references a GameDefinition by name.
     // +kubebuilder:validation:Required
-    Game string `json:"game"`
+    GameDefinition string `json:"gameDefinition"`
 
     // Config provides values for GameDefinition.configSchema keys.
     // +optional
@@ -874,10 +874,10 @@ func (r *SteamServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
     // Fetch GameDefinition (cluster-scoped, no namespace)
     var gameDef boilerrv1alpha1.GameDefinition
-    if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.Game}, &gameDef); err != nil {
+    if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.GameDefinition}, &gameDef); err != nil {
         if apierrors.IsNotFound(err) {
             r.updateStatus(&server, boilerrv1alpha1.ServerStateError,
-                fmt.Sprintf("GameDefinition %q not found", server.Spec.Game))
+                fmt.Sprintf("GameDefinition %q not found", server.Spec.GameDefinition))
             return ctrl.Result{}, nil
         }
         return ctrl.Result{}, err
@@ -886,7 +886,7 @@ func (r *SteamServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
     // Check GameDefinition is ready
     if !gameDef.Status.Ready {
         r.updateStatus(&server, boilerrv1alpha1.ServerStateError,
-            fmt.Sprintf("GameDefinition %q is not ready", server.Spec.Game))
+            fmt.Sprintf("GameDefinition %q is not ready", server.Spec.GameDefinition))
         return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
     }
 
@@ -930,7 +930,7 @@ func (r *SteamServerReconciler) findSteamServersForGameDef(ctx context.Context, 
 
     var requests []reconcile.Request
     for _, server := range serverList.Items {
-        if server.Spec.Game == gameDef.Name {
+        if server.Spec.GameDefinition == gameDef.Name {
             requests = append(requests, reconcile.Request{
                 NamespacedName: client.ObjectKeyFromObject(&server),
             })
@@ -1026,7 +1026,7 @@ spec:
 
 **File:** `config/samples/boilerr.dev_v1alpha1_steamserver_valheim.yaml`
 
-Target UX (with custom unmarshaling - see ConfigValue note above):
+Recommended syntax (clean):
 ```yaml
 apiVersion: boilerr.dev/v1alpha1
 kind: SteamServer
@@ -1034,7 +1034,7 @@ metadata:
   name: valheim-prod
   namespace: game-servers
 spec:
-  game: valheim
+  gameDefinition: valheim
   config:
     serverName: "Vikings Only"      # direct string
     worldName: "Midgard"
@@ -1048,10 +1048,10 @@ spec:
   serviceType: LoadBalancer
 ```
 
-MVP alternative (if custom unmarshaling not implemented):
+Backward-compatible syntax (structured - still supported):
 ```yaml
 spec:
-  game: valheim
+  gameDefinition: valheim
   config:
     serverName:
       value: "Vikings Only"

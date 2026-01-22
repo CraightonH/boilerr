@@ -125,7 +125,7 @@ See `docs/REFACTOR_PLAN.md` for GameDefinition schema details.
 ```go
 func (r *SteamServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
     // 1. Fetch the SteamServer CR
-    // 2. Fetch the referenced GameDefinition (by spec.game)
+    // 2. Fetch the referenced GameDefinition (by spec.gameDefinition)
     // 3. Validate config against GameDefinition.configSchema
     // 4. Handle deletion (finalizers)
     // 5. Build desired resources (pass both CRs to builders)

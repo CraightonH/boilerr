@@ -1,0 +1,250 @@
+---
+# GameDefinition Template
+# This template demonstrates all available fields with explanations.
+# Copy this file, rename it to your game name (e.g., valheim.yaml), and customize.
+
+apiVersion: boilerr.io/v1alpha1
+kind: GameDefinition
+metadata:
+  # Name should be lowercase with hyphens (e.g., valheim, palworld, enshrouded)
+  name: example-game
+  labels:
+    # Optional: tag games by genre, difficulty, etc.
+    boilerr.io/game-genre: survival
+    boilerr.io/difficulty: easy
+
+spec:
+  # REQUIRED: Steam App ID for the dedicated server
+  # Find it on SteamDB (e.g., Valheim dedicated server is 896660)
+  appId: 123456
+
+  # OPTIONAL: Container image to use (default: steamcmd/steamcmd:ubuntu-22)
+  # Only override if game requires specific dependencies
+  # image: steamcmd/steamcmd:ubuntu-22
+
+  # OPTIONAL: Install directory for game files (default: /data/server)
+  # installDir: /data/server
+
+  # REQUIRED: Command to start the game server
+  # This is the executable path relative to installDir or absolute path
+  command: ./game_server.x86_64
+
+  # OPTIONAL: Default startup arguments
+  # Supports {{.Config.key}} template syntax for dynamic values
+  # Users can override these or use configSchema for declarative config
+  args:
+    - -batchmode
+    - -nographics
+    - -port
+    - "{{.Config.port}}"
+    - -name
+    - "{{.Config.serverName}}"
+    - -world
+    - "{{.Config.worldName}}"
+    # Example: conditional flag - will be empty if config doesn't exist
+    - "{{if .Config.public}}public{{end}}"
+
+  # REQUIRED: Port definitions
+  # At least one port is required. Define all ports the game server uses.
+  ports:
+    # Game traffic port
+    - name: game
+      containerPort: 2456
+      # OPTIONAL: servicePort defaults to containerPort if not specified
+      servicePort: 2456
+      # OPTIONAL: protocol defaults to UDP
+      protocol: UDP
+
+    # Query port (for server browser)
+    - name: query
+      containerPort: 2457
+      protocol: UDP
+
+    # Example TCP port (e.g., RCON)
+    - name: rcon
+      containerPort: 2458
+      protocol: TCP
+
+  # OPTIONAL: Environment variables
+  # Use these for configuration that the game reads from env vars
+  env:
+    - name: GAME_MODE
+      value: survival
+    # Can reference ConfigMap or Secret if needed
+    # - name: API_KEY
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: game-secrets
+    #       key: api-key
+
+  # OPTIONAL: User-configurable options
+  # This is the recommended way to expose game settings to users
+  # Each key becomes available in SteamServer.spec.config
+  configSchema:
+    # Example: Simple string config with default
+    serverName:
+      description: "The name shown in server browser"
+      default: "My Server"
+      # Users set via: config.serverName.value = "Vikings Only"
+
+    # Example: Required config without default
+    worldName:
+      description: "Name of the world/save file"
+      required: true
+      # User must provide this in SteamServer.spec.config
+
+    # Example: Secret config (e.g., password)
+    password:
+      description: "Server password (leave empty for no password)"
+      secret: true
+      # Users set via: config.password.secretKeyRef = {...}
+
+    # Example: Config with enum (limited choices)
+    difficulty:
+      description: "Game difficulty level"
+      default: "normal"
+      enum:
+        - easy
+        - normal
+        - hard
+        - brutal
+
+    # Example: Boolean config mapped to command line flag
+    crossplay:
+      description: "Enable crossplay between Steam and other platforms"
+      default: "false"
+      enum: ["true", "false"]
+      mapTo:
+        type: arg
+        value: "-crossplay"
+        # Only add the -crossplay flag if value is "true"
+        condition: "true"
+
+    # Example: Config mapped to environment variable
+    maxPlayers:
+      description: "Maximum number of players"
+      default: "10"
+      mapTo:
+        type: env
+        value: MAX_PLAYERS
+
+    # Example: Array config (multiple values)
+    admins:
+      description: "List of admin Steam IDs"
+      array: true
+      # Users can set multiple values, e.g.:
+      # config.admins.value = "12345,67890,11121"
+
+    # Example: Config that generates a file
+    serverSettings:
+      description: "Custom server settings in JSON format"
+      mapTo:
+        type: configFile
+        path: /data/server/settings.json
+        # Template receives .Config map with all user values
+        template: |
+          {
+            "serverName": "{{.Config.serverName}}",
+            "maxPlayers": {{.Config.maxPlayers}},
+            "difficulty": "{{.Config.difficulty}}",
+            "pvp": {{.Config.pvpEnabled}}
+          }
+
+  # OPTIONAL: Static config files
+  # Use these for files that don't need user customization
+  # For dynamic files, use configSchema with type: configFile
+  configFiles:
+    - path: /data/server/game.ini
+      # Content can use {{.Config.key}} template syntax
+      content: |
+        [Server]
+        MaxFPS=60
+        LogLevel=Info
+        # Reference user config:
+        ServerName={{.Config.serverName}}
+
+  # OPTIONAL: Recommended resource requirements
+  # Users can override these in SteamServer.spec.resources
+  defaultResources:
+    requests:
+      memory: "4Gi"
+      cpu: "2000m"
+    limits:
+      memory: "8Gi"
+      cpu: "4000m"
+
+  # OPTIONAL: Recommended storage size (default: 20Gi)
+  # Users can override in SteamServer.spec.storage.size
+  defaultStorage: "30Gi"
+
+  # OPTIONAL: Health check configuration
+  # Operator will use this to determine if server is healthy
+  healthCheck:
+    # Check if TCP port is accepting connections
+    tcpSocket:
+      port: game
+    # Wait 2 minutes before first check (game needs time to start)
+    initialDelaySeconds: 120
+    # Check every 30 seconds
+    periodSeconds: 30
+
+---
+# Example SteamServer that uses this GameDefinition
+# Users would create this to deploy a server instance
+apiVersion: boilerr.io/v1alpha1
+kind: SteamServer
+metadata:
+  name: my-example-server
+  namespace: default
+spec:
+  # Reference the GameDefinition by name
+  game: example-game
+
+  # Provide values for configSchema fields
+  config:
+    serverName:
+      value: "Vikings Only Server"
+
+    worldName:
+      value: "Valhalla"
+
+    password:
+      # For secrets, reference a Secret object
+      secretKeyRef:
+        name: game-server-secrets
+        key: server-password
+
+    difficulty:
+      value: "hard"
+
+    crossplay:
+      value: "true"
+
+    maxPlayers:
+      value: "20"
+
+    admins:
+      value: "76561198012345678,76561198087654321"
+
+  # OPTIONAL: Storage configuration
+  storage:
+    size: 50Gi
+    # storageClassName: fast-ssd
+
+  # OPTIONAL: Resource overrides
+  resources:
+    requests:
+      memory: "6Gi"
+      cpu: "3000m"
+    limits:
+      memory: "10Gi"
+      cpu: "5000m"
+
+  # OPTIONAL: Service type (default: NodePort)
+  serviceType: NodePort
+
+  # OPTIONAL: SteamCMD options
+  validate: true
+  anonymous: true
+  # For games requiring Steam authentication:
+  # steamCredentialsSecret: steam-login-credentials

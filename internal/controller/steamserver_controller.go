@@ -97,7 +97,7 @@ func (r *SteamServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// 5. Check GameDefinition is ready
 	if gameDef != nil && !gameDef.Status.Ready {
-		err := fmt.Errorf("GameDefinition %q is not ready: %s", server.Spec.Game, gameDef.Status.Message)
+		err := fmt.Errorf("GameDefinition %q is not ready: %s", server.Spec.GameDefinition, gameDef.Status.Message)
 		if _, statusErr := r.setErrorStatus(ctx, server, "GameDefinition", err); statusErr != nil {
 			logger.Error(statusErr, "Failed to update status")
 		}
@@ -135,16 +135,16 @@ func (r *SteamServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // fetchGameDefinition fetches the GameDefinition referenced by the SteamServer.
 // Returns nil if no game is specified (fallback mode).
 func (r *SteamServerReconciler) fetchGameDefinition(ctx context.Context, server *boilerrv1alpha1.SteamServer) (*boilerrv1alpha1.GameDefinition, error) {
-	if server.Spec.Game == "" {
+	if server.Spec.GameDefinition == "" {
 		// Fallback mode: no GameDefinition, all values from SteamServer spec
 		return nil, nil
 	}
 
 	var gameDef boilerrv1alpha1.GameDefinition
 	// GameDefinition is cluster-scoped, so no namespace in the key
-	if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.Game}, &gameDef); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.GameDefinition}, &gameDef); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, fmt.Errorf("GameDefinition %q not found", server.Spec.Game)
+			return nil, fmt.Errorf("GameDefinition %q not found", server.Spec.GameDefinition)
 		}
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (r *SteamServerReconciler) reconcileConfigMap(ctx context.Context, server *
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, configMap, func() error {
-		configMap.Labels = commonLabels(server.Name, server.Spec.Game)
+		configMap.Labels = commonLabels(server.Name, server.Spec.GameDefinition)
 		configMap.Data = make(map[string]string)
 
 		for i, cf := range server.Spec.ConfigFiles {
@@ -534,7 +534,7 @@ func (r *SteamServerReconciler) findSteamServersForGameDef(ctx context.Context, 
 
 	var requests []reconcile.Request
 	for _, server := range serverList.Items {
-		if server.Spec.Game == gameDef.Name {
+		if server.Spec.GameDefinition == gameDef.Name {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&server),
 			})
@@ -560,14 +560,14 @@ func (r *SteamServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // commonLabels returns the common labels for managed resources.
-func commonLabels(name, game string) map[string]string {
+func commonLabels(name, gameDefinition string) map[string]string {
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "steamserver",
 		"app.kubernetes.io/instance":   name,
 		"app.kubernetes.io/managed-by": "boilerr",
 	}
-	if game != "" {
-		labels["boilerr.dev/game"] = game
+	if gameDefinition != "" {
+		labels["boilerr.dev/game"] = gameDefinition
 	}
 	return labels
 }

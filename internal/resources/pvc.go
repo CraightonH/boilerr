@@ -86,6 +86,6 @@ func (b *PVCBuilder) labels() map[string]string {
 		"app.kubernetes.io/name":       "steamserver",
 		"app.kubernetes.io/instance":   b.server.Name,
 		"app.kubernetes.io/managed-by": "boilerr",
-		"boilerr.dev/game":             b.server.Spec.Game,
+		"boilerr.dev/game":             b.server.Spec.GameDefinition,
 	}
 }
