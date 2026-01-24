@@ -31,28 +31,26 @@ jobs:
           helm package charts/boilerr -d .deploy
           echo "CHART_VERSION=$(grep '^version:' charts/boilerr/Chart.yaml | awk '{print $2}')" >> $GITHUB_ENV
 
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-        continue-on-error: true  # Branch might not exist yet
-
-      - name: Initialize gh-pages if needed
+      - name: Checkout or create gh-pages
         run: |
-          if [ ! -d "gh-pages/.git" ]; then
-            echo "Creating gh-pages branch..."
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # Try to checkout gh-pages
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git clone --depth=1 --branch=gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages
+          else
+            # Create new orphan branch
             mkdir -p gh-pages
             cd gh-pages
             git init
-            git config user.name "GitHub Actions"
-            git config user.email "actions@github.com"
             git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-            git checkout -b gh-pages
+            git checkout --orphan gh-pages
             echo "# Boilerr Helm Repository" > README.md
             git add README.md
             git commit -m "Initialize gh-pages branch"
             git push -u origin gh-pages
+            cd ..
           fi
 
       - name: Update Helm Repository
@@ -60,10 +58,15 @@ jobs:
           # Copy chart package
           cp main/.deploy/*.tgz gh-pages/
 
-          # Update index
-          helm repo index gh-pages \
-            --url https://craightonh.github.io/boilerr \
-            --merge gh-pages/index.yaml
+          # Update index (merge only if index.yaml exists)
+          if [ -f gh-pages/index.yaml ]; then
+            helm repo index gh-pages \
+              --url https://craightonh.github.io/boilerr \
+              --merge gh-pages/index.yaml
+          else
+            helm repo index gh-pages \
+              --url https://craightonh.github.io/boilerr
+          fi
 
           # List charts
           ls -lh gh-pages/*.tgz
