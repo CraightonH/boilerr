@@ -17,7 +17,7 @@ entries:
       helm.sh/api-version: v2
     apiVersion: v2
     appVersion: 0.3.0
-    created: "2026-01-24T17:21:43.868468807Z"
+    created: "2026-01-24T10:34:00.277421714-07:00"
     description: A Kubernetes operator for managing Steam dedicated game servers
     digest: cdc56d251f760dbd634d7288d2068a9f75fbe5b61a5cb47de853f50362d7d5e3
     home: https://github.com/CraightonH/boilerr
@@ -40,4 +40,43 @@ entries:
     urls:
     - https://craightonh.github.io/boilerr/boilerr-0.3.0.tgz
     version: 0.3.0
-generated: "2026-01-24T17:21:43.865955337Z"
+  - annotations:
+      artifacthub.io/category: integration-delivery
+      artifacthub.io/license: MIT
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://github.com/CraightonH/boilerr/blob/main/README.md
+        - name: Installation Guide
+          url: https://github.com/CraightonH/boilerr/blob/main/docs/INSTALLATION.md
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Full Lifecycle
+      artifacthub.io/prerelease: "false"
+      artifacthub.io/recommendations: |
+        - url: https://artifacthub.io/packages/helm/cert-manager/cert-manager
+      helm.sh/api-version: v2
+    apiVersion: v2
+    appVersion: 0.0.4
+    created: "2026-01-24T10:34:00.275550592-07:00"
+    description: A Kubernetes operator for managing Steam dedicated game servers
+    digest: 41615e1afd0ad73fb2b71281ca0d32ba854eab9b2cfbe0c60890428c475cb178
+    home: https://github.com/CraightonH/boilerr
+    icon: https://raw.githubusercontent.com/CraightonH/boilerr/main/assets/logo.png
+    keywords:
+    - kubernetes
+    - operator
+    - steam
+    - gaming
+    - game-server
+    - valheim
+    - dedicated-server
+    maintainers:
+    - name: CraightonH
+      url: https://github.com/CraightonH
+    name: boilerr
+    sources:
+    - https://github.com/CraightonH/boilerr
+    type: application
+    urls:
+    - https://craightonh.github.io/boilerr/boilerr-0.0.4.tgz
+    version: 0.0.4
+generated: "2026-01-24T10:34:00.268815113-07:00"
