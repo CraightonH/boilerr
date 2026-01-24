@@ -1,0 +1,72 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "boilerr.fullname" . }}-manager-role
+  labels:
+    {{- include "boilerr.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - persistentvolumeclaims
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - boilerr.dev
+  resources:
+  - gamedefinitions
+  - steamservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - boilerr.dev
+  resources:
+  - gamedefinitions/finalizers
+  - steamservers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - boilerr.dev
+  resources:
+  - gamedefinitions/status
+  - steamservers/status
+  verbs:
+  - get
+  - patch
+  - update
+{{- end }}

@@ -12,76 +12,42 @@ Build the `GameDefinition` and `SteamServer` CRDs. GameDefinition defines how to
 
 ## Phase 3: Bundled GameDefinitions
 
-Create GameDefinition manifests for popular games. These ship with the Helm chart.
+**Status:** Deferred - CRD schema needs stabilization before adding more games.
 
-### 3.1 GameDefinition Template
-- [ ] Create example/template GameDefinition with documentation
-- [ ] Document configSchema mapping patterns (arg, env, configFile)
-- [ ] Create contribution guide for adding new games
+Completed: Template and Valheim GameDefinition. Remaining games (3.3-3.10) deferred until Phase 4 deployment complete and CRD schema stable.
 
-### 3.2 Valheim
-- [ ] Create `gamedefinitions/valheim.yaml`
-- [ ] App ID: 896660, ports: 2456-2458/UDP
-- [ ] Config mappings: serverName, worldName, password, public, crossplay
-- [ ] Config file template: adminlist.txt
-- [ ] Test deployment and document
+### 3.1 GameDefinition Template ✅
+- [x] Create example/template GameDefinition with documentation
+- [x] Document configSchema mapping patterns (arg, env, configFile)
+- [x] Create contribution guide for adding new games
 
-### 3.3 Satisfactory
-- [ ] Create `gamedefinitions/satisfactory.yaml`
-- [ ] App ID: 1690800, ports: 7777/UDP+TCP, 15000/UDP, 15777/UDP
-- [ ] Config mappings: maxPlayers, autosaveInterval, networkQuality
-- [ ] Test deployment and document
+### 3.2 Valheim ✅
+- [x] Create `gamedefinitions/valheim.yaml`
+- [x] App ID: 896660, ports: 2456-2458/UDP
+- [x] Config mappings: serverName, worldName, password, public, crossplay
+- [x] Config file templates: adminlist.txt, permittedlist.txt, bannedlist.txt
+- [x] Test deployment and document
 
-### 3.4 Palworld
-- [ ] Create `gamedefinitions/palworld.yaml`
-- [ ] App ID: 2394010, ports: 8211/UDP
-- [ ] Config mappings: serverName, password, maxPlayers, difficulty
-- [ ] Config file template: PalWorldSettings.ini
-- [ ] Test deployment and document
+### 3.3+ Deferred GameDefinitions
 
-### 3.5 7 Days to Die
-- [ ] Create `gamedefinitions/7daystodie.yaml`
-- [ ] App ID: 294420, ports: 26900/TCP+UDP, 26901-26902/UDP
-- [ ] Config mappings: serverName, worldGenSeed, worldGenSize, gameMode
-- [ ] Config file template: serverconfig.xml
-- [ ] Test deployment and document
+Additional games deferred until CRD schema stabilizes (post Phase 4):
 
-### 3.6 V Rising
-- [ ] Create `gamedefinitions/vrising.yaml`
-- [ ] App ID: 1829350, ports: 9876-9877/UDP
-- [ ] Config mappings: serverName, password, maxPlayers, gameMode
-- [ ] Config file templates: ServerHostSettings.json, ServerGameSettings.json
-- [ ] Test deployment and document
+- Satisfactory (App ID: 1690800)
+- Palworld (App ID: 2394010)
+- 7 Days to Die (App ID: 294420)
+- V Rising (App ID: 1829350)
+- Enshrouded (App ID: 2278520)
+- Project Zomboid (App ID: 380870)
+- Terraria (tShock) (App ID: 105600)
+- ARK: Survival Evolved
+- Rust
+- Counter-Strike 2
+- Team Fortress 2
+- Left 4 Dead 2
+- Conan Exiles
+- The Forest
 
-### 3.7 Enshrouded
-- [ ] Create `gamedefinitions/enshrouded.yaml`
-- [ ] App ID: 2278520, ports: 15636-15637/UDP
-- [ ] Config mappings: serverName, password, maxPlayers
-- [ ] Config file template: enshrouded_server.json
-- [ ] Test deployment and document
-
-### 3.8 Project Zomboid
-- [ ] Create `gamedefinitions/projectzomboid.yaml`
-- [ ] App ID: 380870, ports: 16261/UDP, 16262-16272/TCP
-- [ ] Config mappings: serverName, password, maxPlayers, publicServer
-- [ ] Config file template: server.ini
-- [ ] Test deployment and document
-
-### 3.9 Terraria (tShock)
-- [ ] Create `gamedefinitions/terraria.yaml`
-- [ ] App ID: 105600 (or tShock container), ports: 7777/TCP
-- [ ] Config mappings: worldName, maxPlayers, password, difficulty
-- [ ] Config file template: serverconfig.txt
-- [ ] Test deployment and document
-
-### 3.10 Additional Games (community-driven)
-- [ ] ARK: Survival Evolved
-- [ ] Rust
-- [ ] Counter-Strike 2
-- [ ] Team Fortress 2
-- [ ] Left 4 Dead 2
-- [ ] Conan Exiles
-- [ ] The Forest
+See Backlog section for community-driven game additions after v0.3.0.
 
 ---
 
@@ -89,37 +55,37 @@ Create GameDefinition manifests for popular games. These ship with the Helm char
 
 Package the operator for easy installation.
 
-### 4.1 Container Images
-- [ ] Create optimized multi-stage Dockerfile for operator
-- [ ] Document use of `steamcmd/steamcmd:ubuntu-22` as game server base
-- [ ] Set up automated image builds on release
-- [ ] Push to container registry (GHCR, Docker Hub)
-- [ ] Implement image signing (cosign)
+### 4.1 Container Images ✅
+- [x] Create optimized multi-stage Dockerfile for operator
+- [x] Document use of `steamcmd/steamcmd:ubuntu-22` as game server base
+- [x] Set up automated image builds on release
+- [x] Push to container registry (GHCR, Docker Hub)
+- [x] Implement image signing (cosign)
 
-### 4.2 Kubernetes Manifests
-- [ ] Generate production-ready RBAC manifests
-- [ ] Create operator Deployment manifest
-- [ ] Create Namespace manifest with proper labels
-- [ ] Bundle CRD manifests
-- [ ] Create kustomize overlays for common configurations
+### 4.2 Kubernetes Manifests ✅
+- [x] Generate production-ready RBAC manifests
+- [x] Create operator Deployment manifest
+- [x] Create Namespace manifest with proper labels
+- [x] Bundle CRD manifests
+- [x] Create kustomize overlays for common configurations
 
-### 4.3 Helm Chart
-- [ ] Create Helm chart structure
-- [ ] Parameterize common options (image, resources, replicas)
-- [ ] Add values for RBAC configuration
-- [ ] Add values for operator configuration
-- [ ] Bundle GameDefinitions from Phase 3
-  - [ ] Include all bundled GameDefinitions in `templates/gamedefinitions/`
-  - [ ] Add `gameDefinitions.enabled` value (default: true)
-  - [ ] Allow selective game enablement via values
-- [ ] Document Helm installation
-- [ ] Publish to Helm repository (or GitHub Pages)
+### 4.3 Helm Chart ✅
+- [x] Create Helm chart structure
+- [x] Parameterize common options (image, resources, replicas)
+- [x] Add values for RBAC configuration
+- [x] Add values for operator configuration
+- [x] Bundle GameDefinitions from Phase 3
+  - [x] Include all bundled GameDefinitions in `templates/gamedefinitions/`
+  - [x] Add `gameDefinitions.enabled` value (default: true)
+  - [x] Allow selective game enablement via values
+- [x] Document Helm installation
+- [x] Publish to Helm repository (or GitHub Pages)
 
-### 4.4 Installation Documentation
-- [ ] Quick start guide (kubectl apply)
-- [ ] Helm installation guide
-- [ ] OLM (Operator Lifecycle Manager) bundle (optional)
-- [ ] Document prerequisites and compatibility matrix
+### 4.4 Installation Documentation ✅
+- [x] Quick start guide (kubectl apply)
+- [x] Helm installation guide
+- [ ] OLM (Operator Lifecycle Manager) bundle (optional - deferred)
+- [x] Document prerequisites and compatibility matrix
 
 ---
 
@@ -385,12 +351,12 @@ Items to consider for future versions:
 | Version | Target | Key Features |
 |---------|--------|--------------|
 | v0.1.0 | Phase 2 complete | GameDefinition + SteamServer CRDs working |
-| v0.2.0 | Phase 3 complete | Bundled GameDefinitions for popular games |
-| v0.3.0 | Phase 4 complete | Helm chart with bundled games, easy installation |
+| v0.2.0 | Phase 3 partial | Template + Valheim GameDefinition |
+| v0.3.0 | Phase 4 complete | Helm chart, container images, installation docs |
 | v0.4.0 | Phase 5-6 complete | Web UI with direct apply |
 | v0.5.0 | Phase 7 complete | GitOps integration |
 | v0.6.0 | Phase 8 complete | Observability |
-| v1.0.0 | Phase 9-10 complete | Production ready |
+| v1.0.0 | Phase 9-10 complete | Production ready + expanded game library |
 
 ---
 
@@ -401,4 +367,5 @@ Items to consider for future versions:
 - Uses `steamcmd/steamcmd` container directly - no custom images per game
 - Adding a new game = PR a GameDefinition YAML file (no Go code required)
 - Web UI can be developed in parallel with operator once CRD schemas are stable
-- Community contributions welcome for GameDefinitions after v0.1.0
+- **Additional GameDefinitions (Phase 3.3+) deferred until CRD schema stabilizes (post-v0.3.0)**
+- Community contributions welcome for GameDefinitions after v0.3.0

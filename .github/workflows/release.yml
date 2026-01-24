@@ -23,6 +23,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -71,15 +74,30 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
+        id: build-push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
+
+      - name: Sign container images
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          # Sign all pushed tags
+          for tag in $(echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n'); do
+            echo "Signing ${tag}..."
+            cosign sign --yes ${tag}@${{ steps.build-push.outputs.digest }}
+          done
 
       - name: Build installer manifests
         run: |

@@ -1,0 +1,22 @@
+{{- if .Values.controllerManager.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "boilerr.fullname" . }}-controller-manager-metrics
+  namespace: {{ include "boilerr.namespace" . }}
+  labels:
+    {{- include "boilerr.labels" . | nindent 4 }}
+  {{- with .Values.controllerManager.metrics.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.controllerManager.metrics.service.type }}
+  ports:
+  - name: https
+    port: {{ .Values.controllerManager.metrics.service.port }}
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    {{- include "boilerr.selectorLabels" . | nindent 4 }}
+{{- end }}

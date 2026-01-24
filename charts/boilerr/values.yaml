@@ -1,0 +1,163 @@
+# Default values for boilerr operator
+
+# Operator image configuration
+image:
+  # Image repository
+  repository: ghcr.io/craightonh/boilerr
+  # Image pull policy
+  pullPolicy: IfNotPresent
+  # Overrides the image tag (default is chart appVersion)
+  tag: ""
+
+# Image pull secrets for private registries
+imagePullSecrets: []
+
+# Operator deployment configuration
+replicaCount: 1
+
+# Controller manager configuration
+controllerManager:
+  # Leader election settings
+  leaderElection:
+    enabled: true
+
+  # Health probe settings
+  health:
+    bindAddress: ":8081"
+    livenessProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 20
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
+  # Metrics server settings
+  metrics:
+    enabled: true
+    bindAddress: ":8443"
+    service:
+      type: ClusterIP
+      port: 8443
+      annotations: {}
+
+  # Logging configuration
+  logging:
+    # Log level: debug, info, warn, error
+    level: info
+    # Development mode (more verbose, console output)
+    development: false
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+# Node affinity for multi-arch support
+nodeSelector: {}
+
+# Tolerations for node taints
+tolerations: []
+
+# Pod affinity/anti-affinity rules
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+              - amd64
+              - arm64
+          - key: kubernetes.io/os
+            operator: In
+            values:
+              - linux
+
+# Pod anti-affinity for HA deployments
+podAntiAffinity:
+  enabled: false
+  # preferredDuringSchedulingIgnoredDuringExecution or requiredDuringSchedulingIgnoredDuringExecution
+  type: preferredDuringSchedulingIgnoredDuringExecution
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - "ALL"
+
+# Service account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# RBAC configuration
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+# Namespace configuration
+namespaceOverride: ""
+
+# Pod labels
+podLabels: {}
+
+# Pod annotations
+podAnnotations: {}
+
+# Priority class name
+priorityClassName: ""
+
+# Termination grace period seconds
+terminationGracePeriodSeconds: 10
+
+# GameDefinitions configuration
+gameDefinitions:
+  # Install bundled GameDefinitions
+  enabled: true
+
+  # Selective game enablement
+  # Set to empty list to enable all, or specify games to enable
+  # Example: ["valheim", "satisfactory"]
+  include: []
+
+  # Games to exclude (takes precedence over include)
+  exclude: []
+
+  # Available bundled games (automatically detected from templates/gamedefinitions/)
+  # - valheim
+
+# Custom resource definitions
+crds:
+  # Install CRDs as part of Helm release
+  install: true
+  # Keep CRDs on uninstall (recommended to prevent accidental data loss)
+  keep: true
+
+# Extra environment variables for the operator
+extraEnv: []
+# - name: ENABLE_WEBHOOKS
+#   value: "false"
+
+# Extra volumes
+extraVolumes: []
+
+# Extra volume mounts
+extraVolumeMounts: []

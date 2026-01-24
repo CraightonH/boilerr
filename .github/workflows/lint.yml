@@ -9,6 +9,9 @@ on:
       - 'CODE_OF_CONDUCT.md'
       - '.gitignore'
       - '.pre-commit-config.yaml'
+      - 'docs/**'
+      - 'ROADMAP*.md'
+      - 'DESIGN.md'
   pull_request:
     paths-ignore:
       - '**.md'
@@ -17,6 +20,9 @@ on:
       - 'CODE_OF_CONDUCT.md'
       - '.gitignore'
       - '.pre-commit-config.yaml'
+      - 'docs/**'
+      - 'ROADMAP*.md'
+      - 'DESIGN.md'
 
 jobs:
   lint:

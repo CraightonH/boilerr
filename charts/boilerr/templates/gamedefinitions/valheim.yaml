@@ -1,0 +1,182 @@
+{{- if eq (include "boilerr.isGameEnabled" (dict "game" "valheim" "root" .)) "true" }}
+{{ `---
+# Valheim Dedicated Server GameDefinition
+# Valheim is a brutal exploration and survival game for 1-10 players set in a procedurally-generated purgatory inspired by viking culture.
+
+apiVersion: boilerr.dev/v1alpha1
+kind: GameDefinition
+metadata:
+  name: valheim
+  labels:
+    boilerr.io/game-genre: survival
+    boilerr.io/multiplayer: coop
+
+spec:
+  # Valheim Dedicated Server App ID (not the game client 892970)
+  appId: 896660
+
+  # Command relative to installDir
+  command: ./valheim_server.x86_64
+
+  # Valheim server arguments
+  # Note: -port specifies the base port; server uses port, port+1, and port+2
+  args:
+    - -nographics
+    - -batchmode
+    - -port
+    - "{{.Config.port}}"
+    - -name
+    - "{{.Config.serverName}}"
+    - -world
+    - "{{.Config.worldName}}"
+    - -password
+    - "{{.Config.password}}"
+    - -public
+    - "{{.Config.public}}"
+    - -savedir
+    - /data/saves
+    - -logFile
+    - /data/logs/valheim.log
+
+  # Valheim uses 3 consecutive UDP ports starting from the base port
+  # Default: 2456 (game), 2457 (query), 2458 (reserved)
+  ports:
+    - name: game
+      containerPort: 2456
+      protocol: UDP
+    - name: query
+      containerPort: 2457
+      protocol: UDP
+    - name: reserved
+      containerPort: 2458
+      protocol: UDP
+
+  # Environment variables required by Valheim
+  env:
+    # Game client App ID (required for server operation)
+    - name: SteamAppId
+      value: "892970"
+    # Temp directory for Steam
+    - name: LD_LIBRARY_PATH
+      value: /data/server/linux64
+
+  configSchema:
+    # Server identity
+    serverName:
+      description: "Server name displayed in the server browser (max 50 characters)"
+      default: "My Valheim Server"
+
+    worldName:
+      description: "World/save file name (alphanumeric, no spaces recommended)"
+      default: "Dedicated"
+      required: true
+
+    password:
+      description: "Server password (minimum 5 characters, cannot contain the server name)"
+      secret: true
+      required: true
+
+    # Network settings
+    port:
+      description: "Base game port (server uses this port and the next two)"
+      default: "2456"
+
+    public:
+      description: "List server in the public server browser (1=yes, 0=no)"
+      default: "1"
+      enum: ["0", "1"]
+
+    # Crossplay support (added in later versions)
+    crossplay:
+      description: "Enable crossplay between Steam, Xbox, and Microsoft Store"
+      default: "false"
+      enum: ["true", "false"]
+      mapTo:
+        type: arg
+        value: "-crossplay"
+        condition: "true"
+
+    # Instance ID for multiple servers
+    instanceId:
+      description: "Unique ID for running multiple servers (optional)"
+      mapTo:
+        type: arg
+        value: "-instanceid"
+        condition: ""
+
+    # Modifiers (Valheim preset options)
+    preset:
+      description: "Difficulty preset (normal, casual, easy, hard, hardcore, immersive, hammer)"
+      default: ""
+      enum: ["", "normal", "casual", "easy", "hard", "hardcore", "immersive", "hammer"]
+
+    # Combat modifier
+    combatModifier:
+      description: "Combat difficulty modifier (veryeasy, easy, hard, veryhard)"
+      default: ""
+      enum: ["", "veryeasy", "easy", "hard", "veryhard"]
+
+    # Death penalty modifier
+    deathPenaltyModifier:
+      description: "Death penalty (casual, veryeasy, easy, hard, hardcore)"
+      default: ""
+      enum: ["", "casual", "veryeasy", "easy", "hard", "hardcore"]
+
+    # Resource modifier
+    resourceModifier:
+      description: "Resource rate modifier (muchless, less, more, muchmore, most)"
+      default: ""
+      enum: ["", "muchless", "less", "more", "muchmore", "most"]
+
+    # Raid modifier
+    raidModifier:
+      description: "Raid frequency (none, muchless, less, more, muchmore)"
+      default: ""
+      enum: ["", "none", "muchless", "less", "more", "muchmore"]
+
+    # Portal modifier
+    portalModifier:
+      description: "Portal restrictions (casual, hard, veryhard)"
+      default: ""
+      enum: ["", "casual", "hard", "veryhard"]
+
+  # Admin list file - populated from config
+  configFiles:
+    - path: /data/saves/adminlist.txt
+      content: |
+        // Admin Steam IDs (one per line)
+        // Admins can use console commands in-game
+        {{.Config.admins}}
+
+    - path: /data/saves/permittedlist.txt
+      content: |
+        // Permitted Steam IDs (whitelist, one per line)
+        // Leave empty to allow all players
+        {{.Config.permitted}}
+
+    - path: /data/saves/bannedlist.txt
+      content: |
+        // Banned Steam IDs (one per line)
+        {{.Config.banned}}
+
+  # Valheim is memory-hungry, especially with many players
+  defaultResources:
+    requests:
+      memory: "4Gi"
+      cpu: "2000m"
+    limits:
+      memory: "8Gi"
+      cpu: "4000m"
+
+  # World saves can grow large over time
+  defaultStorage: "20Gi"
+
+  # Health check - Valheim accepts TCP connections on the query port
+  healthCheck:
+    tcpSocket:
+      port: query
+    # Valheim takes a while to start up and generate/load worlds
+    initialDelaySeconds: 180
+    periodSeconds: 30
+` }}
+{{- end }}
