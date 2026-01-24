@@ -1,0 +1,79 @@
+name: Publish Helm Chart
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  publish:
+    name: Publish to GitHub Pages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          path: main
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Package Helm Chart
+        working-directory: main
+        run: |
+          mkdir -p .deploy
+          helm package charts/boilerr -d .deploy
+          echo "CHART_VERSION=$(grep '^version:' charts/boilerr/Chart.yaml | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Update Helm Repository
+        run: |
+          # Copy chart package
+          cp main/.deploy/*.tgz gh-pages/
+
+          # Update index
+          helm repo index gh-pages \
+            --url https://craightonh.github.io/boilerr \
+            --merge gh-pages/index.yaml
+
+          # List charts
+          ls -lh gh-pages/*.tgz
+
+      - name: Commit and Push
+        working-directory: gh-pages
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Publish Helm chart v${{ env.CHART_VERSION }}"
+            git push
+          fi
+
+      - name: Create Release Asset
+        working-directory: main
+        run: |
+          # Prepare chart for release attachment
+          cp .deploy/*.tgz boilerr-chart-v${{ env.CHART_VERSION }}.tgz
+
+      - name: Upload Chart to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: main/boilerr-chart-v${{ env.CHART_VERSION }}.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

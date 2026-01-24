@@ -1,0 +1,42 @@
+apiVersion: v2
+name: boilerr
+description: A Kubernetes operator for managing Steam dedicated game servers
+type: application
+version: 0.3.0
+appVersion: "0.3.0"
+
+keywords:
+  - kubernetes
+  - operator
+  - steam
+  - gaming
+  - game-server
+  - valheim
+  - dedicated-server
+
+home: https://github.com/CraightonH/boilerr
+sources:
+  - https://github.com/CraightonH/boilerr
+
+maintainers:
+  - name: CraightonH
+    url: https://github.com/CraightonH
+
+icon: https://raw.githubusercontent.com/CraightonH/boilerr/main/assets/logo.png
+
+annotations:
+  # Support Helm 3 only
+  helm.sh/api-version: v2
+  # Artifact Hub annotations
+  artifacthub.io/category: integration-delivery
+  artifacthub.io/license: MIT
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://github.com/CraightonH/boilerr/blob/main/README.md
+    - name: Installation Guide
+      url: https://github.com/CraightonH/boilerr/blob/main/docs/INSTALLATION.md
+  artifacthub.io/operator: "true"
+  artifacthub.io/operatorCapabilities: Full Lifecycle
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/cert-manager/cert-manager

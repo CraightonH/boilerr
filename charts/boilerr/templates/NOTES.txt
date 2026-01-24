@@ -1,0 +1,101 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }} -n {{ include "boilerr.namespace" . }}
+  $ helm get all {{ .Release.Name }} -n {{ include "boilerr.namespace" . }}
+
+✅ Boilerr operator is now installed in namespace: {{ include "boilerr.namespace" . }}
+
+📦 Installed Components:
+{{- if .Values.crds.install }}
+  ✓ Custom Resource Definitions (GameDefinition, SteamServer)
+{{- end }}
+{{- if .Values.rbac.create }}
+  ✓ RBAC (ClusterRole, ClusterRoleBinding)
+{{- end }}
+{{- if .Values.serviceAccount.create }}
+  ✓ ServiceAccount: {{ include "boilerr.serviceAccountName" . }}
+{{- end }}
+  ✓ Deployment: {{ include "boilerr.fullname" . }}-controller-manager ({{ .Values.replicaCount }} replicas)
+{{- if .Values.controllerManager.metrics.enabled }}
+  ✓ Metrics Service: {{ include "boilerr.fullname" . }}-controller-manager-metrics
+{{- end }}
+{{- if .Values.gameDefinitions.enabled }}
+{{- if eq (include "boilerr.isGameEnabled" (dict "game" "valheim" "root" .)) "true" }}
+  ✓ GameDefinitions: valheim
+{{- end }}
+{{- end }}
+
+🔍 Check operator status:
+
+  kubectl get deployment {{ include "boilerr.fullname" . }}-controller-manager -n {{ include "boilerr.namespace" . }}
+  kubectl get pods -n {{ include "boilerr.namespace" . }} -l app.kubernetes.io/name={{ include "boilerr.name" . }}
+
+📋 View operator logs:
+
+  kubectl logs -n {{ include "boilerr.namespace" . }} -l app.kubernetes.io/name={{ include "boilerr.name" . }} -f
+
+🎮 List available GameDefinitions:
+
+  kubectl get gamedefinitions
+
+🚀 Deploy your first game server:
+
+  # Create a secret for server password
+  kubectl create secret generic valheim-secrets \
+    --from-literal=server-password='YourSecurePassword123'
+
+  # Create a SteamServer
+  cat <<EOF | kubectl apply -f -
+  apiVersion: boilerr.dev/v1alpha1
+  kind: SteamServer
+  metadata:
+    name: my-valheim-server
+    namespace: default
+  spec:
+    gameDefinition: valheim
+    config:
+      serverName: "My Server"
+      worldName: "MyWorld"
+      password:
+        secretKeyRef:
+          name: valheim-secrets
+          key: server-password
+      public: "0"
+    storage:
+      size: 20Gi
+    serviceType: LoadBalancer
+  EOF
+
+  # Watch server creation
+  kubectl get steamserver my-valheim-server -w
+
+📚 Documentation:
+
+  • Installation: https://github.com/CraightonH/boilerr/blob/main/docs/INSTALLATION.md
+  • Design: https://github.com/CraightonH/boilerr/blob/main/DESIGN.md
+  • README: https://github.com/CraightonH/boilerr/blob/main/README.md
+  • Issues: https://github.com/CraightonH/boilerr/issues
+
+⚙️  Configuration:
+
+  View your configuration:
+    helm get values {{ .Release.Name }} -n {{ include "boilerr.namespace" . }}
+
+  Upgrade with custom values:
+    helm upgrade {{ .Release.Name }} boilerr/boilerr \
+      -n {{ include "boilerr.namespace" . }} \
+      --set replicaCount=2 \
+      --set resources.limits.memory=512Mi
+
+💡 Tips:
+
+  • GameDefinitions are cluster-scoped and available to all namespaces
+  • SteamServers are namespaced - create them in any namespace
+  • Use kubectl get steamserver -A to see all servers cluster-wide
+  • Check server status with: kubectl describe steamserver <name>
+
+Happy gaming! 🎉
