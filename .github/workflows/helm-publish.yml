@@ -36,6 +36,24 @@ jobs:
         with:
           ref: gh-pages
           path: gh-pages
+        continue-on-error: true  # Branch might not exist yet
+
+      - name: Initialize gh-pages if needed
+        run: |
+          if [ ! -d "gh-pages/.git" ]; then
+            echo "Creating gh-pages branch..."
+            mkdir -p gh-pages
+            cd gh-pages
+            git init
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            git checkout -b gh-pages
+            echo "# Boilerr Helm Repository" > README.md
+            git add README.md
+            git commit -m "Initialize gh-pages branch"
+            git push -u origin gh-pages
+          fi
 
       - name: Update Helm Repository
         run: |
